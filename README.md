@@ -28,7 +28,7 @@ This is a monorepo powered by [pnpm](https://pnpm.io/). [Install pnpm](https://p
 
 ### Versioning
 
-reSpawn is currently at **0.1.0** (initial fork reset). All workspace packages have been reset to `0.1.0`.
+reSpawn is currently at **0.0.1** (initial fork reset). All workspace packages have been reset to `0.0.1`.
 
 ### License
 

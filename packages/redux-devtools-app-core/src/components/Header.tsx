@@ -7,7 +7,7 @@ import { RiTwitterXLine } from 'react-icons/ri';
 import { TiHeartFullOutline } from 'react-icons/ti';
 import { changeSection } from '../actions/index.js';
 
-const tabs = [{ name: 'Actions' }, { name: 'Settings' }];
+const tabs = [{ name: 'Actions' }, { name: 'Checkpoints'}, { name: 'Settings' }];
 
 type DispatchProps = ResolveThunks<typeof actionCreators>;
 interface OwnProps {

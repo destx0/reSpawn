@@ -1,6 +1,6 @@
 {
   "name": "@redux-devtools/app-core",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "reSpawn app core \u2014 an extension of Redux DevTools with Checkpoint features and internal navigation.",
   "homepage": "https://github.com/reduxjs/redux-devtools/tree/master/packages/redux-devtools-app-core",
   "bugs": {

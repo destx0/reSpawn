@@ -1,6 +1,6 @@
 {
   "name": "@redux-devtools/core",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "reSpawn core \u2014 an extension of Redux DevTools with Checkpoint features and internal navigation.",
   "keywords": [
     "redux",
