@@ -1,0 +1,25 @@
+packages:
+  - extension
+  - packages/*
+  - packages/d3-state-visualizer/examples/tree
+  - packages/react-dock/demo
+  - packages/react-json-tree/examples
+  - packages/redux-devtools/examples/counter
+  - packages/redux-devtools/examples/todomvc
+  - packages/redux-devtools-inspector-monitor/demo
+  - packages/redux-devtools-inspector-monitor-test-tab/demo
+  - packages/redux-devtools-rtk-query-monitor/demo
+  - packages/redux-devtools-slider-monitor/examples/todomvc
+
+allowBuilds:
+  '@apollo/protobufjs': true
+  chromedriver: true
+  esbuild: true
+  msw: true
+  sqlite3: true
+  unrs-resolver: true
+
+patchedDependencies:
+  '@dnd-kit/core': patches/@dnd-kit__core.patch
+  '@dnd-kit/sortable': patches/@dnd-kit__sortable.patch
+  redux-persist: patches/redux-persist.patch

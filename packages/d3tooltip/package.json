@@ -1,0 +1,45 @@
+{
+  "name": "d3tooltip",
+  "version": "0.1.0",
+  "description": "reSpawn \u2014 an extension of Redux DevTools with Checkpoint features and internal navigation.",
+  "keywords": [
+    "d3",
+    "tooltip"
+  ],
+  "homepage": "https://github.com/reduxjs/redux-devtools/tree/master/packages/d3tooltip",
+  "bugs": {
+    "url": "https://github.com/reduxjs/redux-devtools/issues"
+  },
+  "license": "MIT",
+  "author": "romseguy",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "exports": "./lib/index.js",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reduxjs/redux-devtools.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf lib",
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit",
+    "prepack": "pnpm run clean && pnpm run build",
+    "prepublish": "pnpm run lint"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "d3": "^7.9.0",
+    "rimraf": "^6.1.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-7": "npm:typescript@7.0.2"
+  },
+  "peerDependencies": {
+    "@types/d3": "^7.4.3",
+    "d3": "^7.9.0"
+  }
+}

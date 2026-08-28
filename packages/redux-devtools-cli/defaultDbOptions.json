@@ -1,0 +1,7 @@
+{
+  "client": "sqlite3",
+  "connection": { "filename": ":memory:" },
+  "useNullAsDefault": true,
+  "debug": false,
+  "migrate": true
+}

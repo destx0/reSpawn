@@ -1,0 +1,132 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Dialog renders correctly 1`] = `
+<div
+  class="css-1nze9tl"
+>
+  <div />
+  <div>
+    <div
+      class="mc-dialog--header"
+    >
+      <div />
+      <button>
+        ×
+      </button>
+    </div>
+    <div
+      class="mc-dialog--body"
+    />
+    <div
+      class="mc-dialog--footer"
+    >
+      <div
+        class="css-jg680o"
+      >
+        <button
+          class="css-g2zi5"
+        >
+          Cancel
+        </button>
+      </div>
+      <div
+        class="css-jg680o"
+      >
+        <button
+          class="css-1td9y62"
+        >
+          Submit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Dialog renders modal 1`] = `
+<div
+  class="css-1nze9tl"
+>
+  <div />
+  <div>
+    <div
+      class="mc-dialog--header"
+    >
+      <div />
+    </div>
+    <div
+      class="mc-dialog--body"
+    />
+    <div
+      class="mc-dialog--footer"
+    >
+      <div
+        class="css-jg680o"
+      >
+        <button
+          class="css-g2zi5"
+        >
+          Cancel
+        </button>
+      </div>
+      <div
+        class="css-jg680o"
+      >
+        <button
+          class="css-1td9y62"
+        >
+          Submit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Dialog renders with props 1`] = `
+<div
+  class="css-1cbskzi"
+  open=""
+>
+  <div />
+  <div>
+    <div
+      class="mc-dialog--header"
+    >
+      <div>
+        Dialog Title
+      </div>
+      <button>
+        ×
+      </button>
+    </div>
+    <div
+      class="mc-dialog--body"
+    >
+      Hello Dialog!
+    </div>
+    <div
+      class="mc-dialog--footer"
+    >
+      <div
+        class="css-jg680o"
+      >
+        <button
+          class="css-g2zi5"
+        >
+          Cancel
+        </button>
+      </div>
+      <div
+        class="css-jg680o"
+      >
+        <button
+          class="css-1td9y62"
+        >
+          Submit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;

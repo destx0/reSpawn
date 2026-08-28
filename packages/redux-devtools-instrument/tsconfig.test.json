@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.esm.base.json",
+  "compilerOptions": {
+    "types": ["jest", "node"]
+  },
+  "include": ["src", "test"]
+}

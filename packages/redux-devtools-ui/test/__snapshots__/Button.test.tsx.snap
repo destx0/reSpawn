@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Button renders correctly 1`] = `
+<div
+  class="css-jg680o"
+>
+  <button
+    class="css-g2zi5"
+  >
+    Text
+  </button>
+</div>
+`;

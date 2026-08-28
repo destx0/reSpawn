@@ -1,0 +1,7 @@
+{
+  "extends": "../../../../tsconfig.esm.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src"]
+}

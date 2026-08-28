@@ -1,0 +1,54 @@
+{
+  "name": "@redux-devtools/instrument",
+  "version": "0.1.0",
+  "description": "reSpawn \u2014 an extension of Redux DevTools with Checkpoint features and internal navigation.",
+  "keywords": [
+    "redux",
+    "devtools",
+    "flux",
+    "hot reloading",
+    "time travel",
+    "live edit"
+  ],
+  "homepage": "https://github.com/reduxjs/redux-devtools/tree/master/packages/redux-devtools-instrument",
+  "bugs": {
+    "url": "https://github.com/reduxjs/redux-devtools/issues"
+  },
+  "license": "MIT",
+  "author": "Dan Abramov <dan.abramov@me.com> (http://github.com/gaearon)",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "exports": "./lib/instrument.js",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reduxjs/redux-devtools.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf lib",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit",
+    "prepack": "pnpm run clean && pnpm run build",
+    "prepublish": "pnpm run type-check && pnpm run lint && pnpm run test"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.4.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.13.3",
+    "jest": "^30.4.2",
+    "redux": "^5.0.1",
+    "rimraf": "^6.1.3",
+    "rxjs": "^7.8.2",
+    "ts-jest": "^29.4.12",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-7": "npm:typescript@7.0.2"
+  },
+  "peerDependencies": {
+    "redux": "^3.4.0 || ^4.0.0 || ^5.0.0"
+  }
+}

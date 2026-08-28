@@ -1,0 +1,14 @@
+export { default } from './default.js';
+export { default as github } from './github.js';
+export { default as atomOneDark } from './atom-one-dark.js';
+export { default as dracula } from './dracula.js';
+export { default as iRBlack } from './ir-black.js';
+export { default as macintosh } from './macintosh.js';
+export { default as materia } from './materia.js';
+export { default as oceanicNext } from './oceanic-next.js';
+export { default as phD } from './phd.js';
+export { default as pico } from './pico.js';
+export { default as solarFlare } from './solar-flare.js';
+export { default as spacemacs } from './spacemacs.js';
+export { default as unikitty } from './unikitty.js';
+export { default as woodland } from './woodland.js';

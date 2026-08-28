@@ -1,0 +1,13 @@
+node_modules
+*.log
+.DS_Store
+lib
+dist
+umd
+build
+coverage
+.idea
+.eslintcache
+!packages/redux-devtools-slider-monitor/examples/todomvc/dist/index.html
+.nx
+*.tsbuildinfo

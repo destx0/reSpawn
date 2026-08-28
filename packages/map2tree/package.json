@@ -1,0 +1,51 @@
+{
+  "name": "map2tree",
+  "version": "0.1.0",
+  "description": "reSpawn \u2014 an extension of Redux DevTools with Checkpoint features and internal navigation.",
+  "keywords": [
+    "map2tree",
+    "map-to-tree",
+    "mapToTree",
+    "map",
+    "tree"
+  ],
+  "homepage": "https://github.com/reduxjs/redux-devtools/tree/master/packages/map2tree",
+  "bugs": {
+    "url": "https://github.com/reduxjs/redux-devtools/issues"
+  },
+  "license": "MIT",
+  "author": "romseguy",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "exports": "./lib/index.js",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reduxjs/redux-devtools.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf lib",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit",
+    "prepack": "pnpm run clean && pnpm run build",
+    "prepublish": "pnpm run lint && pnpm run test"
+  },
+  "dependencies": {
+    "lodash-es": "^4.18.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/lodash-es": "^4.17.12",
+    "immutable": "^5.1.9",
+    "jest": "^30.4.2",
+    "rimraf": "^6.1.3",
+    "ts-jest": "^29.4.12",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-7": "npm:typescript@7.0.2"
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "version": "0.1.0",
+  "name": "reSpawn",
+  "manifest_version": 3,
+  "description": "reSpawn \u2014 an extension of Redux DevTools with Checkpoint features and internal navigation.",
+  "homepage_url": "https://github.com/reduxjs/redux-devtools",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "respawn@devtools"
+    }
+  },
+  "action": {
+    "default_icon": "img/logo/38x38.png",
+    "default_title": "reSpawn",
+    "default_popup": "devpanel.html#popup"
+  },
+  "commands": {
+    "devtools-window": {
+      "description": "DevTools window"
+    },
+    "devtools-remote": {
+      "description": "Remote DevTools"
+    }
+  },
+  "icons": {
+    "16": "img/logo/16x16.png",
+    "48": "img/logo/48x48.png",
+    "128": "img/logo/128x128.png"
+  },
+  "options_ui": {
+    "page": "options.html"
+  },
+  "background": {
+    "scripts": [
+      "background.bundle.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.bundle.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "page.bundle.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    }
+  ],
+  "devtools_page": "devtools.html",
+  "permissions": [
+    "notifications",
+    "contextMenus",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "file:///*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data:;"
+  }
+}

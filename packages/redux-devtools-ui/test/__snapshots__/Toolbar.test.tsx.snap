@@ -1,0 +1,38 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Toolbar renders correctly 1`] = `
+<div
+  class="css-1vb2bz"
+>
+  <div
+    class="css-jg680o"
+  >
+    <button
+      class="css-g2zi5"
+    >
+      1
+    </button>
+  </div>
+  <div
+    class="css-t7c7u"
+  />
+  <div
+    class="css-w6gvpm"
+  />
+  <div
+    class="css-jg680o"
+  >
+    <button
+      class="css-g2zi5"
+    >
+      2
+    </button>
+  </div>
+</div>
+`;
+
+exports[`Toolbar renders with props 1`] = `
+<div
+  class="css-1wu4lza"
+/>
+`;

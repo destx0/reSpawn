@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.esm.react.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "lib",
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "@emotion/react",
+    "stripInternal": true
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,91 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`StackTraceTab component should render the link to docs 1`] = `
+<div
+  style="padding: 5px 10px;"
+>
+  To enable tracing action calls, you should set \`trace\` option to \`true\` for Redux DevTools enhancer. Refer to
+   
+  <a
+    href="#"
+  >
+    this page
+  </a>
+   
+  for more details.
+</div>
+`;
+
+exports[`StackTraceTab component should render with no props 1`] = `
+<div
+  style="padding: 5px 10px;"
+>
+  <div
+    data-testid="stack-trace"
+    style="font-size: 1em; flex: 0 1 auto; min-height: 0px; overflow: auto;"
+  />
+</div>
+`;
+
+exports[`StackTraceTab component should render with props, but without stack 1`] = `
+<div
+  style="padding: 5px 10px;"
+>
+  <div
+    data-testid="stack-trace"
+    style="font-size: 1em; flex: 0 1 auto; min-height: 0px; overflow: auto;"
+  />
+</div>
+`;
+
+exports[`StackTraceTab component should render with trace stack 1`] = `
+<div
+  style="padding: 5px 10px;"
+>
+  <div
+    data-testid="stack-trace"
+    style="font-size: 1em; flex: 0 1 auto; min-height: 0px; overflow: auto;"
+  >
+    <div>
+      <button
+        style="color: rgb(255, 255, 255); background-color: rgb(60, 68, 79); cursor: pointer; display: block; width: 100%; text-align: left; font-size: 1em; padding: 0px 5px; line-height: 1.5; margin-bottom: 0.6em;"
+      >
+        ▼ 2 stack frames were expanded.
+      </button>
+      <div
+        style="display: block;"
+      >
+        <div>
+          <div>
+            fn1
+          </div>
+          <div
+            style="font-size: 0.9em; margin-bottom: 0.9em;"
+          >
+            <span>
+              app.js:72:24
+            </span>
+          </div>
+        </div>
+        <div>
+          <div>
+            fn2
+          </div>
+          <div
+            style="font-size: 0.9em; margin-bottom: 0.9em;"
+          >
+            <span>
+              app.js:84:31
+            </span>
+          </div>
+        </div>
+        <button
+          style="color: rgb(255, 255, 255); background-color: rgb(60, 68, 79); cursor: pointer; display: block; width: 100%; text-align: left; font-size: 1em; padding: 0px 5px; line-height: 1.5; margin-bottom: 0.6em;"
+        >
+          ▲ 2 stack frames were expanded.
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;

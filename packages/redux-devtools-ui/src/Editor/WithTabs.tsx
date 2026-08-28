@@ -1,0 +1,52 @@
+import React, { Component } from 'react';
+import Editor from './index.js';
+import Tabs from '../Tabs/index.js';
+
+const value1 = `
+  const func1 = () => {}
+`;
+
+const value2 = `
+  const func2 = () => {}
+`;
+
+export interface WithTabsProps {
+  position: 'left' | 'right' | 'center';
+  lineNumbers: boolean;
+}
+
+interface TabProps {
+  value: string;
+  lineNumbers: boolean;
+}
+
+export default class WithTabs extends Component<WithTabsProps> {
+  state = {
+    selected: 'Function 1',
+  };
+
+  render() {
+    const { position, lineNumbers } = this.props;
+    return (
+      <Tabs<TabProps>
+        tabs={[
+          {
+            name: 'Function 1',
+            component: Editor,
+            selector: () => ({ value: value1, lineNumbers }),
+          },
+          {
+            name: 'Function 2',
+            component: Editor,
+            selector: () => ({ value: value2, lineNumbers }),
+          },
+        ]}
+        selected={this.state.selected}
+        onClick={(selected) => {
+          this.setState({ selected });
+        }}
+        position={position}
+      />
+    );
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "private": true,
+  "name": "react-json-tree-example",
+  "version": "1.1.10",
+  "description": "React-Json-Tree example",
+  "homepage": "https://github.com/reduxjs/redux-devtools/tree/master/packages/react-json-tree/examples",
+  "bugs": {
+    "url": "https://github.com/reduxjs/redux-devtools/issues"
+  },
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reduxjs/redux-devtools.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "type-check": "tsc"
+  },
+  "dependencies": {
+    "immutable": "^5.1.9",
+    "react": "^19.2.8",
+    "react-base16-styling": "workspace:^",
+    "react-dom": "^19.2.8",
+    "react-json-tree": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-7": "npm:typescript@7.0.2",
+    "vite": "^8.2.0"
+  }
+}

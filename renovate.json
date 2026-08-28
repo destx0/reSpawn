@@ -1,0 +1,53 @@
+{
+  "extends": [
+    "config:recommended",
+    "group:allNonMajor",
+    ":maintainLockFilesWeekly"
+  ],
+  "rangeStrategy": "bump",
+  "postUpdateOptions": ["pnpmDedupe"],
+  "rebaseWhen": "conflicted",
+  "ignorePaths": [
+    "**/node_modules/**",
+    "extension/examples/**",
+    "packages/redux-devtools-remote/examples/**"
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["npm"],
+      "minimumReleaseAge": "1 day"
+    },
+    {
+      "matchPackageNames": ["node"],
+      "enabled": false
+    },
+    {
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major", "minor"],
+      "groupName": "typescript"
+    },
+    {
+      "matchPackageNames": ["source-map", "@types/source-map"],
+      "groupName": "source-map"
+    },
+    {
+      "matchPackageNames": ["msw"],
+      "groupName": "msw"
+    },
+    {
+      "matchPackageNames": [
+        "redux",
+        "redux-thunk",
+        "react-redux",
+        "@reduxjs/toolkit",
+        "@types/redux-logger"
+      ],
+      "matchUpdateTypes": ["major"],
+      "groupName": "redux"
+    },
+    {
+      "matchPackageNames": ["@types/redux-logger"],
+      "groupName": "redux"
+    }
+  ]
+}
