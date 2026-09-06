@@ -8,40 +8,63 @@ type Props = StateProps;
 
 interface State {
   selected: string | undefined;
+  inspectedUrl: string;
+  inspectedHost: string;
 }
 type StateProps = ReturnType<typeof mapStateToProps>;
 class Checkpoints extends Component<Props, State> {
+  state: State = { selected: undefined, inspectedUrl: '', inspectedHost: '' };
+
+  componentDidMount() {
+    this.fetchInspectedUrl();
+  }
+
+  fetchInspectedUrl = () => {
+    const set = (u: string) => {
+      try {
+        this.setState({ inspectedUrl: u, inspectedHost: new URL(u).host });
+      } catch {
+        this.setState({ inspectedUrl: u, inspectedHost: u });
+      }
+    };
+    if ((chrome as any)?.devtools?.inspectedWindow)
+      (chrome as any).devtools.inspectedWindow.eval(
+        'window.location.href',
+        (r: any) => typeof r === 'string' && set(r),
+      );
+    else if ((chrome as any)?.tabs)
+      (chrome as any).tabs.query(
+        { active: true, currentWindow: true },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        (t: any) => t[0]?.url && set(t[0].url),
+      );
+    else set(window.location.href);
+  };
+
   handleSelect = (selected: string) => {
     this.setState({ selected });
   };
 
   render() {
     const { liftedState } = this.props;
-    const currentstate =
-      liftedState.computedStates?.[liftedState.currentStateIndex];
-    let path = '';
-    if (chrome && chrome.devtools && chrome.devtools.inspectedWindow) {
-      path = chrome.devtools.inspectedWindow.tabId.toString();
-      console.log(
-        'Current State:',
-        chrome,
-        chrome.devtools.inspectedWindow.tabId,
-      );
+    if (!liftedState) {
+      return <div>No store found.</div>;
     }
-    function getInspectedUrl(cb:(url:string)=>void){
-      if (typeof chrome !== 'undefined' && chrome.devtools?.inspectedWindow){
-        chrome.devtools.inspectedWindow.eval('window.location.href', (r)=>cb(r as string))
-      } else if (chrome.tabs){
-        chrome.tabs.query({active:true,currentWindow:true}, tabs=>cb(tabs[0].url))
-      }
-    }
+    const currentState =
+      liftedState.computedStates?.[liftedState.currentStateIndex]?.state;
+    const { inspectedUrl, inspectedHost } = this.state;
 
     return (
-      <>
-        <JSONTree data={path} />
-        <JSONTree data={currentstate} />
-        <JSONTree data={liftedState} />
-      </>
+      <div style={{ padding: 12, fontFamily: 'monospace', fontSize: 12 }}>
+        <div>Host: {inspectedHost || 'loading...'}</div>
+        <div>URL: {inspectedUrl || 'loading...'}</div>
+        <h4>Current State</h4>
+        <JSONTree data={currentState} hideRoot />
+        <h4>Current ComputedState</h4>
+        <JSONTree
+          data={liftedState.computedStates?.[liftedState.currentStateIndex]}
+        />
+      </div>
     );
   }
 }
@@ -52,5 +75,4 @@ const mapStateToProps = (state: CoreStoreState) => {
     liftedState: instances.states[id],
   };
 };
-
 export default connect(mapStateToProps)(Checkpoints);
