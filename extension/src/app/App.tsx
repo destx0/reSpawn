@@ -6,6 +6,7 @@ import {
   getActiveInstance,
   Header,
   Settings,
+  Checkpoints,
   StoreState,
 } from '@redux-devtools/app';
 import Actions from './Actions.js';
@@ -41,6 +42,9 @@ class App extends Component<Props> {
       case 'Settings':
         body = <Settings />;
         break;
+        case 'Checkpoints':
+          body = <Checkpoints />;
+          break;
       default:
         body = <Actions position={position} />;
     }

@@ -7,6 +7,7 @@ export { default as SliderButton } from './components/buttons/SliderButton.js';
 export { default as Header } from './components/Header.js';
 export { default as MonitorSelector } from './components/MonitorSelector.js';
 export { default as Settings } from './components/Settings/index.js';
+export { default as Checkpoints } from './components/Checkpoints/index.js';
 export { default as TopButtons } from './components/TopButtons.js';
 export { default as App } from './containers/App.js';
 export { default as DevTools } from './containers/DevTools.js';

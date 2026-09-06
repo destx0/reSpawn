@@ -69,9 +69,10 @@
     ]
   },
   "permissions": [
-    "notifications",
     "contextMenus",
-    "storage"
+    "notifications",
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
     "file:///*",

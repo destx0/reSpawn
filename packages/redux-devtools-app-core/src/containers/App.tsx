@@ -5,6 +5,7 @@ import { clearNotification } from '../actions/index.js';
 import Header from '../components/Header.js';
 import Actions from './Actions.js';
 import Settings from '../components/Settings/index.js';
+import Checkpoints from '../components/Checkpoints/index.js';
 import { CoreStoreState } from '../reducers/index.js';
 
 type StateProps = ReturnType<typeof mapStateToProps>;
@@ -21,6 +22,9 @@ class App extends Component<Props> {
     switch (section) {
       case 'Settings':
         body = <Settings extraTabs={extraSettingsTabs} />;
+        break;
+      case 'Checkpoints':
+        body = <Checkpoints />;
         break;
       default:
         body = <Actions />;

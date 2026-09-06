@@ -35,28 +35,16 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "exclude_globs": [
-        "https://www.google*"
-      ],
-      "js": [
-        "content.bundle.js"
-      ],
+      "matches": ["<all_urls>"],
+      "exclude_globs": ["https://www.google*"],
+      "js": ["content.bundle.js"],
       "run_at": "document_start",
       "all_frames": true
     },
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "exclude_globs": [
-        "https://www.google*"
-      ],
-      "js": [
-        "page.bundle.js"
-      ],
+      "matches": ["<all_urls>"],
+      "exclude_globs": ["https://www.google*"],
+      "js": ["page.bundle.js"],
       "run_at": "document_start",
       "all_frames": true,
       "world": "MAIN"
@@ -64,20 +52,10 @@
   ],
   "devtools_page": "devtools.html",
   "externally_connectable": {
-    "ids": [
-      "*"
-    ]
+    "ids": ["*"]
   },
-  "permissions": [
-    "notifications",
-    "contextMenus",
-    "storage"
-  ],
-  "host_permissions": [
-    "file:///*",
-    "http://*/*",
-    "https://*/*"
-  ],
+  "permissions": ["notifications", "contextMenus", "storage", "tabs"],
+  "host_permissions": ["file:///*", "http://*/*", "https://*/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src * 'unsafe-inline'; img-src 'self' data:;"
   },
