@@ -16,6 +16,7 @@ export default [
       'firefox',
       'jest.config.ts',
       'test/electron/fixture/dist',
+      'test/checkpoints-e2e/fixtures',
     ],
   },
   {
@@ -23,6 +24,15 @@ export default [
     languageOptions: {
       globals: {
         ...globals.nodeBuiltin,
+      },
+    },
+  },
+  {
+    files: ['test/checkpoints-e2e/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        WebSocket: 'readonly',
       },
     },
   },
