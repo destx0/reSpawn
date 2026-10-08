@@ -1,5 +1,4 @@
 import {
-  CheckpointMeta,
   formatRelativeTime,
   fuzzyCheckpoints,
   isRouteQuery,
@@ -10,7 +9,7 @@ import {
   resolveRouteQuery,
 } from '../../../src/checkpoints/core.js';
 
-function meta(overrides: Partial<CheckpointMeta>): CheckpointMeta {
+function meta(overrides) {
   return {
     version: 1,
     id: 'id',
@@ -116,7 +115,7 @@ describe('ordering and search', () => {
 });
 
 describe('normalizeImportedCheckpoint', () => {
-  const stringify = (value: unknown) => JSON.stringify(value);
+  const stringify = (value) => JSON.stringify(value);
 
   it('accepts inspector-ng v1 exports (plain state, no origin)', () => {
     const record = normalizeImportedCheckpoint(
