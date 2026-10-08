@@ -11,6 +11,28 @@ It can be used as a browser extension (for Chrome, Edge and Firefox), as a stand
 
 ![image](https://user-images.githubusercontent.com/7957859/48663602-3aac4900-ea9b-11e8-921f-97059cbb599c.png)
 
+## Checkpoints and navigation
+
+Checkpoints work with any app that connects to Redux DevTools: NgRx (`provideStoreDevtools`), Redux / Redux Toolkit, and other `connect()` clients. Nothing needs to be installed in the app.
+
+| Where                          | How                              | What happens                                                                                                                                                                                                        |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page                           | `Alt+S`                          | Save the current state and route as a checkpoint, auto-named after the route (`/cart`, `/cart 2`, …)                                                                                                                |
+| Page                           | `Alt+P`                          | Open the command palette: fuzzy-search this site's checkpoints, or type a route                                                                                                                                     |
+| Palette                        | `Enter`                          | Restore the highlighted checkpoint: apply its state, navigate to its route, then apply the state again after route guards and resolvers have run                                                                    |
+| Palette                        | `Shift+Enter`                    | Go to the checkpoint's route without changing state                                                                                                                                                                 |
+| Palette                        | `/path`, `./child`, `../sibling` | Navigate inside the app without a reload. Relative paths resolve against the current route, and work inside the hash for `#/` routers                                                                               |
+| Palette                        | `F2` / `Shift+Del`               | Rename / delete the highlighted checkpoint                                                                                                                                                                          |
+| DevTools → **Checkpoints** tab | Buttons                          | Save (optional name), go to a route, search, restore, go, rename, export, delete, import. **All sites** shows other origins' checkpoints. **Open** loads that checkpoint's URL in the inspected tab and restores it |
+
+Notes:
+
+- Checkpoints are stored in the extension (`chrome.storage.local`), not in the page, so they survive reloads and clearing site data. They are grouped by origin.
+- A restore replaces the store with the saved state, so the DevTools action history starts again from that state.
+- Navigation uses `history.pushState` followed by a `popstate` event. Angular Router, React Router and Vue Router handle that like a browser back/forward.
+- Hotkeys are active only on pages whose top frame has a connected store. They step aside when the `inspector-ng` overlay (`<inspector-overlay>`) is present, since it has its own shortcuts.
+- Exports are JSON files. Importing also accepts `inspector-ng` version 1 checkpoint exports.
+
 ## Documentation
 
 - [Browser Extension Installation and Configuration](https://github.com/reduxjs/redux-devtools/tree/main/extension#installation)
