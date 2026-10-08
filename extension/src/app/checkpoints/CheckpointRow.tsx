@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import {
+  FiArrowRight,
+  FiBookmark,
+  FiCheck,
+  FiDownload,
+  FiEdit2,
+  FiExternalLink,
+  FiRotateCcw,
+  FiTrash2,
+} from 'react-icons/fi';
+import {
   CheckpointMeta,
   formatRelativeTime,
   formatSize,
 } from '../../checkpoints/core.js';
 import {
-  Hint,
-  Input,
+  Actions,
+  IconButton,
+  Mono,
+  RenameInput,
   Row,
-  RowActions,
   RowMain,
-  RowMeta,
   RowName,
-  SmallButton,
 } from './styles.js';
 
 interface Props {
@@ -59,18 +68,28 @@ export default function CheckpointRow({
     if (await onRename(name)) setRenaming(false);
   };
 
+  const startRename = () => {
+    setName(checkpoint.name);
+    setRenaming(true);
+  };
+
   const activity = checkpoint.lastUsedAt ?? checkpoint.createdAt;
   const canRestore = restoreMode !== 'disabled' && !busy;
-  const restoreTitle =
-    restoreMode === 'open'
-      ? `Load ${checkpoint.url} in this tab, then restore the state`
-      : 'Restore this state and navigate to its route';
+  const location = showOrigin
+    ? `${checkpoint.origin}${checkpoint.route}`
+    : checkpoint.route;
 
   return (
-    <Row>
+    <Row
+      onDoubleClick={(event) => {
+        if ((event.target as HTMLElement).closest('button, input')) return;
+        if (canRestore) onRestore();
+      }}
+    >
+      <FiBookmark />
       <RowMain>
         {renaming ? (
-          <Input
+          <RenameInput
             autoFocus
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -84,60 +103,56 @@ export default function CheckpointRow({
             }}
           />
         ) : (
-          <RowName
-            title="Click to rename"
-            onClick={() => {
-              setName(checkpoint.name);
-              setRenaming(true);
-            }}
-            onDoubleClick={() => canRestore && onRestore()}
-          >
-            {checkpoint.name}
-          </RowName>
+          <RowName title={checkpoint.name}>{checkpoint.name}</RowName>
         )}
-        <Hint title={checkpoint.url}>
-          {showOrigin
-            ? `${checkpoint.origin}${checkpoint.route}`
-            : checkpoint.route}
-        </Hint>
+        <Mono
+          title={`${checkpoint.url}\n${new Date(activity).toLocaleString()} · ${formatSize(checkpoint.size)}`}
+        >
+          {checkpoint.name === location ? '' : `${location} · `}
+          {formatRelativeTime(activity)}
+        </Mono>
       </RowMain>
-      <RowMeta title={new Date(activity).toLocaleString()}>
-        {formatRelativeTime(activity)} · {formatSize(checkpoint.size)}
-      </RowMeta>
-      <RowActions>
-        <SmallButton
+      <Actions
+        className="actions"
+        style={confirmDelete || renaming ? { opacity: 1 } : undefined}
+      >
+        <IconButton
           primary
           disabled={!canRestore}
-          title={restoreTitle}
+          title={
+            restoreMode === 'open'
+              ? 'Open in this tab and restore'
+              : 'Restore state'
+          }
           onClick={onRestore}
         >
-          {restoreMode === 'open' ? 'Open' : 'Restore'}
-        </SmallButton>
-        <SmallButton
+          {restoreMode === 'open' ? <FiExternalLink /> : <FiRotateCcw />}
+        </IconButton>
+        <IconButton
           disabled={!canGo || busy}
-          title="Navigate to this route without changing state"
+          title="Go to route (keep state)"
           onClick={onGo}
         >
-          Go
-        </SmallButton>
-        <SmallButton
+          <FiArrowRight />
+        </IconButton>
+        <IconButton disabled={busy} title="Rename" onClick={startRename}>
+          <FiEdit2 />
+        </IconButton>
+        <IconButton disabled={busy} title="Export JSON" onClick={onExport}>
+          <FiDownload />
+        </IconButton>
+        <IconButton
+          danger={confirmDelete}
           disabled={busy}
-          title="Download as JSON"
-          onClick={onExport}
-        >
-          Export
-        </SmallButton>
-        <SmallButton
-          danger
-          disabled={busy}
+          title={confirmDelete ? 'Click again to delete' : 'Delete'}
           onClick={() => {
             if (confirmDelete) onDelete();
             else setConfirmDelete(true);
           }}
         >
-          {confirmDelete ? 'Confirm' : 'Delete'}
-        </SmallButton>
-      </RowActions>
+          {confirmDelete ? <FiCheck /> : <FiTrash2 />}
+        </IconButton>
+      </Actions>
     </Row>
   );
 }

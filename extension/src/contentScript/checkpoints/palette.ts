@@ -15,92 +15,117 @@ type Item =
   | { readonly kind: 'save'; readonly name: string }
   | { readonly kind: 'checkpoint'; readonly checkpoint: CheckpointMeta };
 
+// Feather icons (MIT), inlined so the content script stays dependency-free.
+const svg = (body: string) =>
+  `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+const ICONS = {
+  search: svg('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>'),
+  bookmark: svg('<path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  arrow: svg('<path d="M5 12h14M12 5l7 7-7 7"/>'),
+  edit: svg('<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>'),
+  trash: svg(
+    '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  ),
+  check: svg('<path d="M20 6 9 17l-5-5"/>'),
+};
+
 const STYLE = `
 :host { all: initial; }
 * { box-sizing: border-box; }
 .backdrop {
-  --bg: #ffffff; --fg: #0f172a; --muted: #64748b; --line: #e2e8f0;
-  --hover: #f1f5f9; --active: #e0ecff; --accent: #2563eb; --danger: #dc2626;
+  --bg: #ffffff; --fg: #18181b; --muted: #71717a; --faint: #a1a1aa;
+  --line: #e4e4e7; --hover: #f4f4f5; --active: #f4f4f5;
+  --accent: #2563eb; --danger: #dc2626;
   position: fixed; inset: 0; z-index: 2147483646;
   display: flex; align-items: flex-start; justify-content: center;
-  padding-top: min(14vh, 120px);
-  background: rgb(15 23 42 / 0.28);
+  padding-top: min(16vh, 140px);
+  background: rgb(0 0 0 / 0.2);
   font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--fg);
+  animation: fade 120ms ease-out;
 }
 @media (prefers-color-scheme: dark) {
   .backdrop {
-    --bg: #0f172a; --fg: #e2e8f0; --muted: #94a3b8; --line: #1e293b;
-    --hover: #1e293b; --active: #1e3a5f; --accent: #60a5fa; --danger: #f87171;
+    --bg: #18181b; --fg: #f4f4f5; --muted: #a1a1aa; --faint: #71717a;
+    --line: #27272a; --hover: #232326; --active: #27272a;
+    --accent: #60a5fa; --danger: #f87171;
     background: rgb(0 0 0 / 0.45);
   }
 }
+@keyframes fade { from { opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(-4px) scale(0.99); } }
+svg { display: block; flex: none; }
 .dialog {
-  width: min(600px, calc(100vw - 32px));
-  max-height: min(70vh, 560px);
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(60vh, 480px);
   display: flex; flex-direction: column;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 12px;
-  box-shadow: 0 24px 64px rgb(0 0 0 / 0.28);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.22), 0 2px 6px rgb(0 0 0 / 0.08);
   overflow: hidden;
+  animation: rise 140ms ease-out;
 }
 .search {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px; border-bottom: 1px solid var(--line);
-}
-.brand {
-  font-weight: 700; font-size: 11px; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--accent);
+  padding: 0 16px; height: 48px; color: var(--faint);
 }
 input {
   flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
   font: inherit; font-size: 15px; color: var(--fg);
 }
-input::placeholder { color: var(--muted); }
-.list { overflow-y: auto; padding: 6px; margin: 0; list-style: none; }
+input::placeholder { color: var(--faint); }
+.list {
+  overflow-y: auto; padding: 4px 6px 6px; margin: 0; list-style: none;
+  border-top: 1px solid var(--line);
+}
+.list:empty { display: none; }
 .row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  height: 42px; padding: 0 10px; border-radius: 8px; cursor: pointer;
 }
-.row:hover { background: var(--hover); }
 .row.active { background: var(--active); }
-.icon {
-  width: 22px; height: 22px; border-radius: 6px; flex: none;
-  display: grid; place-items: center;
-  font-size: 12px; font-weight: 700; color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+.row > svg { color: var(--faint); }
+.row.active > svg { color: var(--accent); }
+.main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.title {
+  flex: none; max-width: 60%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.main { flex: 1; min-width: 0; }
-.title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sub {
-  color: var(--muted); font-size: 12px;
+  flex: 1; min-width: 0;
+  color: var(--faint); font-size: 12px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
 }
-.meta { color: var(--muted); font-size: 12px; flex: none; }
+.meta { color: var(--faint); font-size: 12px; flex: none; }
 .btn {
-  border: 0; background: transparent; color: var(--muted);
-  font: inherit; font-size: 12px; padding: 2px 6px; border-radius: 5px;
-  cursor: pointer; visibility: hidden;
+  display: none; place-items: center;
+  width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--muted); cursor: pointer;
 }
-.row:hover .btn, .row.active .btn { visibility: visible; }
+.row.active .btn, .btn.confirm { display: grid; }
+.row.active .meta { display: none; }
 .btn:hover { color: var(--fg); background: var(--line); }
-.btn.danger { color: var(--danger); }
+.btn.confirm, .btn.confirm:hover { color: var(--danger); }
 .rename {
-  width: 100%; font-size: 13px; font-weight: 600;
-  border: 1px solid var(--accent); border-radius: 5px; padding: 2px 6px;
+  flex: 1; font-size: 13px; padding: 0;
+  border: 0; border-bottom: 1px solid var(--accent);
 }
-.empty, .error { padding: 18px 14px; color: var(--muted); text-align: center; }
-.error { color: var(--danger); text-align: left; padding: 8px 16px; }
+.empty { padding: 20px 14px; color: var(--faint); text-align: center; }
+.error {
+  padding: 8px 16px; font-size: 12px; color: var(--danger);
+  border-top: 1px solid var(--line);
+}
 .footer {
-  display: flex; gap: 14px; flex-wrap: wrap;
-  padding: 8px 14px; border-top: 1px solid var(--line);
-  color: var(--muted); font-size: 11.5px;
+  display: flex; gap: 14px; justify-content: flex-end;
+  padding: 7px 14px; border-top: 1px solid var(--line);
+  color: var(--faint); font-size: 11px;
 }
 kbd {
-  font: inherit; font-size: 11px; padding: 0 4px; border-radius: 4px;
-  border: 1px solid var(--line); background: var(--hover);
+  font: inherit; font-size: 10.5px; padding: 0 4px; margin-right: 3px;
+  border-radius: 4px; border: 1px solid var(--line);
 }
 `;
 
@@ -148,12 +173,9 @@ class Palette {
 
     const search = document.createElement('div');
     search.className = 'search';
-    const brand = document.createElement('span');
-    brand.className = 'brand';
-    brand.textContent = 'reSpawn';
+    search.innerHTML = ICONS.search;
     this.input = document.createElement('input');
-    this.input.placeholder =
-      'Search checkpoints, or go to /route, ./child, ../sibling';
+    this.input.placeholder = 'Search checkpoints or go to /route';
     this.input.setAttribute('role', 'combobox');
     this.input.setAttribute('aria-controls', 'respawn-list');
     this.input.setAttribute('aria-expanded', 'true');
@@ -165,7 +187,7 @@ class Palette {
       this.setError(null);
       this.render();
     });
-    search.append(brand, this.input);
+    search.append(this.input);
 
     this.errorBox = document.createElement('div');
     this.errorBox.className = 'error';
@@ -179,13 +201,11 @@ class Palette {
     const footer = document.createElement('div');
     footer.className = 'footer';
     footer.innerHTML =
-      '<span><kbd>↵</kbd> restore</span>' +
-      '<span><kbd>⇧</kbd><kbd>↵</kbd> go without restoring</span>' +
-      '<span><kbd>F2</kbd> rename</span>' +
-      '<span><kbd>⇧</kbd><kbd>Del</kbd> delete</span>' +
-      '<span><kbd>Alt</kbd><kbd>S</kbd> save</span>';
+      '<span><kbd>↵</kbd>restore</span>' +
+      '<span><kbd>⇧↵</kbd>go</span>' +
+      '<span><kbd>esc</kbd>close</span>';
 
-    dialog.append(search, this.errorBox, this.list, footer);
+    dialog.append(search, this.list, this.errorBox, footer);
     backdrop.append(dialog);
     root.append(style, backdrop);
 
@@ -274,7 +294,7 @@ class Palette {
     if (!this.checkpoints.length && !this.input.value.trim()) {
       const empty = document.createElement('li');
       empty.className = 'empty';
-      empty.textContent = `No checkpoints for ${location.host} yet.`;
+      empty.textContent = 'No checkpoints yet';
       rows.unshift(empty);
     }
     this.list.replaceChildren(...rows);
@@ -308,30 +328,29 @@ class Palette {
       void this.run(item, event.shiftKey);
     });
 
-    const icon = document.createElement('span');
-    icon.className = 'icon';
     const main = document.createElement('div');
     main.className = 'main';
-    const title = document.createElement('div');
+    const title = document.createElement('span');
     title.className = 'title';
-    const sub = document.createElement('div');
+    const sub = document.createElement('span');
     sub.className = 'sub';
     main.append(title, sub);
-    row.append(icon, main);
+    row.innerHTML =
+      item.kind === 'go'
+        ? ICONS.arrow
+        : item.kind === 'save'
+          ? ICONS.plus
+          : ICONS.bookmark;
+    row.append(main);
 
     if (item.kind === 'go') {
-      icon.textContent = '→';
-      title.textContent = `Go to ${item.route}`;
-      sub.textContent = 'Navigate in the app without changing state';
+      title.textContent = item.route;
+      sub.textContent = 'go, keep state';
     } else if (item.kind === 'save') {
-      icon.textContent = '+';
-      title.textContent = item.name
-        ? `Save checkpoint as “${item.name}”`
-        : 'Save checkpoint';
+      title.textContent = item.name ? `Save “${item.name}”` : 'Save checkpoint';
       sub.textContent = `${location.pathname}${location.search}${location.hash}`;
     } else {
       const { checkpoint } = item;
-      icon.textContent = '◆';
       if (this.renamingId === checkpoint.id) {
         const rename = document.createElement('input');
         rename.className = 'rename';
@@ -349,37 +368,42 @@ class Palette {
             this.input.focus();
           }
         });
-        title.replaceWith(rename);
+        main.replaceChildren(rename);
       } else {
         title.textContent = checkpoint.name;
+        if (checkpoint.name !== checkpoint.route) {
+          sub.textContent = checkpoint.route;
+        }
       }
-      sub.textContent = checkpoint.route;
       const meta = document.createElement('span');
       meta.className = 'meta';
       meta.textContent = formatRelativeTime(
         checkpoint.lastUsedAt ?? checkpoint.createdAt,
       );
-      const renameButton = this.button('Rename', () => {
+      const renameButton = this.button(ICONS.edit, 'Rename (F2)', () => {
         this.renamingId = checkpoint.id;
         this.render();
       });
       const confirming = this.confirmDeleteId === checkpoint.id;
       const deleteButton = this.button(
-        confirming ? 'Confirm delete' : 'Delete',
+        confirming ? ICONS.check : ICONS.trash,
+        confirming ? 'Click again to delete' : 'Delete (Shift+Del)',
         () => void this.requestDelete(checkpoint.id),
-        true,
       );
-      if (confirming) deleteButton.style.visibility = 'visible';
+      deleteButton.classList.add('delete');
+      if (confirming) deleteButton.classList.add('confirm');
       row.append(meta, renameButton, deleteButton);
     }
     return row;
   }
 
-  private button(label: string, onClick: () => void, danger = false) {
+  private button(icon: string, label: string, onClick: () => void) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `btn${danger ? ' danger' : ''}`;
-    button.textContent = label;
+    button.className = 'btn';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.innerHTML = icon;
     button.addEventListener('click', (event) => {
       event.stopPropagation();
       onClick();

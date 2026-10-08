@@ -8,6 +8,16 @@ import React, {
 import { useSelector } from 'react-redux';
 import { getActiveInstance, StoreState } from '@redux-devtools/app';
 import {
+  FiAlertCircle,
+  FiArrowRight,
+  FiBookmark,
+  FiCheck,
+  FiGlobe,
+  FiPlus,
+  FiSearch,
+  FiUpload,
+} from 'react-icons/fi';
+import {
   CheckpointMeta,
   fuzzyCheckpoints,
   isRouteQuery,
@@ -23,23 +33,27 @@ import {
 } from '../../checkpoints/messages.js';
 import CheckpointRow from './CheckpointRow.js';
 import {
-  Banner,
-  Bar,
-  Field,
-  Hint,
-  InlineHint,
+  Badge,
+  Empty,
+  Header,
+  Host,
+  IconButton,
   Input,
+  Kbd,
   List,
+  Location,
+  Mono,
   Page,
-  PillButton,
-  Section,
-  SectionTitle,
-  Toggle,
+  Row,
+  RowMain,
+  RowName,
+  SearchBox,
+  Status,
 } from './styles.js';
 
 const INDEX_KEY = 'respawn:checkpoints:index';
 
-type Status = { kind: 'error' | 'success'; text: string } | null;
+type StatusMessage = { kind: 'error' | 'success'; text: string } | null;
 
 function downloadJson(fileName: string, data: unknown) {
   const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -101,12 +115,16 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
   const [context, setContext] = useState<PageContext | null>(null);
   const [instanceName, setInstanceName] = useState<string | undefined>();
   const [query, setQuery] = useState('');
-  const [route, setRoute] = useState('');
-  const [saveName, setSaveName] = useState('');
   const [allSites, setAllSites] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<Status>(null);
+  const [status, setStatus] = useState<StatusMessage>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (status?.kind !== 'success') return;
+    const timer = setTimeout(() => setStatus(null), 2500);
+    return () => clearTimeout(timer);
+  }, [status]);
 
   const loadList = useCallback(async () => {
     const response = await requestCheckpoints({ type: 'RESPAWN/LIST' });
@@ -188,33 +206,32 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
       allSites || !context
         ? checkpoints
         : checkpoints.filter((item) => item.origin === context.origin);
-    return fuzzyCheckpoints(scoped, query);
+    return isRouteQuery(query.trim()) ? [] : fuzzyCheckpoints(scoped, query);
   }, [allSites, checkpoints, context, query]);
 
+  const routeQuery = isRouteQuery(query.trim());
   const resolvedRoute = useMemo(() => {
-    if (!context || !isRouteQuery(route)) return null;
+    if (!context || !routeQuery) return null;
     try {
-      return resolveRouteForUrl(route, context.url);
+      return resolveRouteForUrl(query.trim(), context.url);
     } catch {
       return null;
     }
-  }, [context, route]);
+  }, [context, query, routeQuery]);
 
   const save = async () => {
-    const response = await run(
-      { type: 'RESPAWN/SAVE', ...target, name: saveName || undefined },
-      (r) => (r.ok ? `Saved “${r.checkpoint.name}”.` : ''),
+    await run({ type: 'RESPAWN/SAVE', ...target }, (r) =>
+      r.ok ? `Saved “${r.checkpoint.name}”` : '',
     );
-    if (response.ok) setSaveName('');
   };
 
   const go = async () => {
-    if (!route.trim() || !target) return;
+    if (!resolvedRoute || !target) return;
     const response = await run(
-      { type: 'RESPAWN/NAVIGATE', ...target, route },
-      (r) => (r.ok ? `Navigated to ${r.route}.` : ''),
+      { type: 'RESPAWN/NAVIGATE', ...target, route: query.trim() },
+      (r) => (r.ok ? `Went to ${r.route}` : ''),
     );
-    if (response.ok) setRoute('');
+    if (response.ok) setQuery('');
   };
 
   const importFile = async (file: File) => {
@@ -226,7 +243,7 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
       return;
     }
     await run({ type: 'RESPAWN/IMPORT', data, origin: context?.origin }, (r) =>
-      r.ok ? `Imported “${r.checkpoint.name}”.` : '',
+      r.ok ? `Imported “${r.checkpoint.name}”` : '',
     );
   };
 
@@ -241,118 +258,99 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
 
   return (
     <Page>
-      <Section>
-        <Bar>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <SectionTitle>
-              {context ? new URL(context.url).host : 'No page'}
-              {instanceName && <InlineHint> · {instanceName}</InlineHint>}
-            </SectionTitle>
-            <Hint title={context?.url}>
-              {context
-                ? context.route
-                : target
-                  ? 'Connecting to the page…'
-                  : 'No page to inspect.'}
-            </Hint>
-          </div>
-        </Bar>
-        <Bar>
-          <Field>
-            <Input
-              value={saveName}
-              placeholder="Name (optional, defaults to the route)"
-              onChange={(event) => setSaveName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void save();
-              }}
-              disabled={!hasStore}
-            />
-          </Field>
-          <PillButton
-            primary
-            disabled={!hasStore || busy}
-            onClick={() => void save()}
-            title="Save the current state and route (Alt+S on the page)"
-          >
-            Save checkpoint
-          </PillButton>
-        </Bar>
-        <Bar>
-          <Field>
-            <Input
-              value={route}
-              placeholder="Go to /route, ./child or ../sibling (no state change)"
-              onChange={(event) => setRoute(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void go();
-              }}
-              disabled={!target}
-              spellCheck={false}
-            />
-            {route.trim() && (
-              <Hint>
-                {resolvedRoute
-                  ? `→ ${resolvedRoute}`
-                  : 'Start with /, ./ or ../'}
-              </Hint>
-            )}
-          </Field>
-          <PillButton
-            disabled={!target || busy || !resolvedRoute}
-            onClick={() => void go()}
-          >
-            Go
-          </PillButton>
-        </Bar>
-      </Section>
+      <Header>
+        <Location
+          title={[context?.url, instanceName].filter(Boolean).join('\n')}
+        >
+          <Host>{context ? new URL(context.url).host : 'No page'}</Host>
+          {context && <Mono>{context.route}</Mono>}
+        </Location>
+        <IconButton
+          active={allSites}
+          title={allSites ? 'Showing all sites' : 'Show all sites'}
+          onClick={() => setAllSites(!allSites)}
+        >
+          <FiGlobe />
+          {!allSites && otherSites > 0 && <Badge>{otherSites}</Badge>}
+        </IconButton>
+        <IconButton
+          title="Import JSON"
+          onClick={() => fileInput.current?.click()}
+        >
+          <FiUpload />
+        </IconButton>
+        <IconButton
+          primary
+          disabled={!hasStore || busy}
+          onClick={() => void save()}
+          title="Save checkpoint (Alt+S)"
+        >
+          <FiPlus />
+        </IconButton>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (file) void importFile(file);
+          }}
+        />
+      </Header>
 
-      {status && <Banner kind={status.kind}>{status.text}</Banner>}
+      <SearchBox>
+        <FiSearch />
+        <Input
+          value={query}
+          placeholder="Search, or go to /route, ./child, ../"
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && resolvedRoute) void go();
+            if (event.key === 'Escape') setQuery('');
+          }}
+          spellCheck={false}
+        />
+      </SearchBox>
 
-      <Section>
-        <Bar>
-          <Field>
-            <Input
-              value={query}
-              placeholder="Search checkpoints"
-              onChange={(event) => setQuery(event.target.value)}
-              spellCheck={false}
-            />
-          </Field>
-          <Toggle>
-            <input
-              type="checkbox"
-              checked={allSites}
-              onChange={(event) => setAllSites(event.target.checked)}
-            />
-            All sites{otherSites ? ` (+${otherSites})` : ''}
-          </Toggle>
-          <PillButton onClick={() => fileInput.current?.click()}>
-            Import
-          </PillButton>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="application/json,.json"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = '';
-              if (file) void importFile(file);
-            }}
-          />
-        </Bar>
-      </Section>
+      {status && (
+        <Status
+          kind={status.kind}
+          title="Dismiss"
+          onClick={() => setStatus(null)}
+        >
+          {status.kind === 'error' ? <FiAlertCircle /> : <FiCheck />}
+          {status.text}
+        </Status>
+      )}
 
       <List>
-        {visible.length === 0 && (
-          <Hint style={{ padding: 16, textAlign: 'center' }}>
-            {checkpoints.length === 0
-              ? 'No checkpoints yet. Press Alt+S on the page or click Save checkpoint.'
-              : query
-                ? 'No checkpoints match.'
-                : 'No checkpoints for this site.'}
-          </Hint>
+        {routeQuery && (
+          <Row accent onClick={() => resolvedRoute && void go()}>
+            <FiArrowRight />
+            <RowMain>
+              <RowName>{resolvedRoute ?? query.trim()}</RowName>
+              <Mono>
+                {resolvedRoute ? 'Go to route, keep state' : 'Invalid route'}
+              </Mono>
+            </RowMain>
+            {resolvedRoute && target && <Kbd>↵</Kbd>}
+          </Row>
+        )}
+        {visible.length === 0 && !routeQuery && (
+          <Empty>
+            <FiBookmark />
+            {checkpoints.length === 0 ? (
+              <span>
+                No checkpoints · <Kbd>Alt</Kbd> <Kbd>S</Kbd> to save
+              </span>
+            ) : query ? (
+              'No matches'
+            ) : (
+              'No checkpoints for this site'
+            )}
+          </Empty>
         )}
         {visible.map((checkpoint) => (
           <CheckpointRow
@@ -377,7 +375,7 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
                   open: true,
                   ...target,
                 },
-                (r) => (r.ok ? `Restored “${r.checkpoint.name}”.` : ''),
+                (r) => (r.ok ? `Restored “${r.checkpoint.name}”` : ''),
               )
             }
             onGo={() =>
@@ -387,7 +385,7 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
                   route: checkpoint.route,
                   ...target,
                 },
-                (r) => (r.ok ? `Navigated to ${r.route}.` : ''),
+                (r) => (r.ok ? `Went to ${r.route}` : ''),
               )
             }
             onRename={async (name) => {

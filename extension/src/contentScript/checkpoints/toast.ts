@@ -12,26 +12,36 @@ const STYLE = `
   transform: translate(-50%, 8px);
   z-index: 2147483647;
   max-width: min(480px, calc(100vw - 32px));
-  padding: 9px 14px 9px 12px;
-  border-radius: 8px;
+  padding: 8px 14px 8px 11px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   gap: 8px;
   font: 500 13px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
-  color: #f8fafc;
-  background: #1e293b;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  color: #fafafa;
+  background: #18181b;
+  border: 1px solid #27272a;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
   opacity: 0;
   transition: opacity 140ms ease, transform 140ms ease;
   pointer-events: none;
 }
 .toast.visible { opacity: 1; transform: translate(-50%, 0); }
-.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.success .dot { background: #34d399; }
-.info .dot { background: #60a5fa; }
-.error .dot { background: #f87171; }
-.label { opacity: 0.6; font-weight: 600; letter-spacing: 0.02em; }
+.message { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+svg { flex: none; display: block; }
+.success svg { color: #4ade80; }
+.info svg { color: #60a5fa; }
+.error svg { color: #f87171; }
 `;
+
+const svg = (body: string) =>
+  `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+// Feather icons (MIT).
+const ICONS: Record<ToastKind, string> = {
+  success: svg('<path d="M20 6 9 17l-5-5"/>'),
+  info: svg('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'),
+  error: svg('<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>'),
+};
 
 let hideTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -55,14 +65,11 @@ function ensureToast(): HTMLDivElement {
 
 export function showToast(text: string, kind: ToastKind = 'info') {
   const toast = ensureToast();
-  const dot = document.createElement('span');
-  dot.className = 'dot';
-  const label = document.createElement('span');
-  label.className = 'label';
-  label.textContent = 'reSpawn';
   const message = document.createElement('span');
+  message.className = 'message';
   message.textContent = text;
-  toast.replaceChildren(dot, label, message);
+  toast.innerHTML = ICONS[kind];
+  toast.append(message);
   toast.className = `toast ${kind}`;
   // Force a reflow so re-showing restarts the transition.
   void toast.offsetWidth;

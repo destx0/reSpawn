@@ -333,7 +333,7 @@ async function main() {
     `document.getElementById('respawn-palette-host').shadowRoot.querySelector('.row.active .title')?.textContent`,
     2000,
   ).catch((e) => e.message);
-  check('palette: route query shows Go row', goRow === 'Go to /cart/x', goRow);
+  check('palette: route query shows Go row', goRow === '/cart/x', goRow);
   await pressNamed(rx.sessionId, 'Enter');
   const navigated = await waitFor(
     rx.sessionId,
@@ -611,12 +611,12 @@ async function main() {
   );
   const panelText = await waitFor(
     panel.sessionId,
-    `document.body.innerText.includes('Save checkpoint') && document.body.innerText`,
+    `document.body.innerText.includes('Wizard step 2') && document.body.innerText`,
     5000,
   ).catch((e) => e.message);
   check(
     'panel: Checkpoints tab renders',
-    typeof panelText === 'string' && panelText.includes('Save checkpoint'),
+    typeof panelText === 'string' && panelText.includes('Wizard step 2'),
     String(panelText).slice(0, 300),
   );
   await sleep(600);
@@ -677,7 +677,7 @@ async function main() {
   );
   await evaluate(
     rx.sessionId,
-    `document.getElementById('respawn-palette-host').shadowRoot.querySelector('.btn.danger').click(); document.getElementById('respawn-palette-host').shadowRoot.querySelector('.btn.danger').click(); true`,
+    `document.getElementById('respawn-palette-host').shadowRoot.querySelector('.btn.delete').click(); document.getElementById('respawn-palette-host').shadowRoot.querySelector('.btn.delete').click(); true`,
   );
   await sleep(500);
   check(

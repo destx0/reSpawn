@@ -16,144 +16,163 @@ export const Page = styled.div`
   background: ${(p) => th(p).base00};
 `;
 
-export const Section = styled.div`
+export const Header = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
-  background: ${(p) => th(p).base01};
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 6px 0 12px;
   border-bottom: 1px solid ${(p) => th(p).base02};
 `;
 
-export const Bar = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  min-width: 0;
-`;
-
-export const Field = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+export const Location = styled.div`
   flex: 1;
   min-width: 0;
-`;
-
-export const SectionTitle = styled.div`
-  font-weight: 600;
-  font-size: 13px;
-  color: ${(p) => th(p).base07};
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 `;
 
-export const Hint = styled.span`
-  display: block;
+export const Host = styled.span`
+  flex: none;
+  font-weight: 600;
+  color: ${(p) => th(p).base07};
+`;
+
+export const Mono = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: ${(p) => th(p).base04};
   font-family: ${(p) => th(p).codeFontFamily};
   font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 `;
 
-export const InlineHint = styled.span`
-  color: ${(p) => th(p).base04};
-  font-weight: 400;
-`;
-
-export const Input = styled.input`
-  box-sizing: border-box;
-  width: 100%;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid ${(p) => th(p).base02};
-  border-radius: 4px;
-  background: ${(p) => th(p).base00};
-  color: ${(p) => th(p).base05};
-  font-family: ${(p) => th(p).codeFontFamily};
-  font-size: 12px;
-  outline: none;
-  &:focus {
-    border-color: ${(p) => th(p).base0D};
-  }
-  &::placeholder {
-    color: ${(p) => th(p).base03};
-  }
-  &:disabled {
-    opacity: 0.6;
-  }
-`;
-
-export const PillButton = styled.button<{
+export const IconButton = styled.button<{
   primary?: boolean;
   danger?: boolean;
+  active?: boolean;
 }>`
+  all: unset;
   flex: none;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
   height: 26px;
-  padding: 0 10px;
-  border-radius: 4px;
-  border: 1px solid
-    ${(p) =>
-      p.danger ? th(p).base08 : p.primary ? th(p).base0D : th(p).base02};
-  background: ${(p) => (p.primary ? th(p).base0D : th(p).base00)};
-  color: ${(p) =>
-    p.primary ? th(p).base00 : p.danger ? th(p).base08 : th(p).base05};
-  font-family: ${(p) => th(p).fontFamily};
-  font-size: 12px;
-  font-weight: ${({ primary }) => (primary ? 600 : 400)};
+  border-radius: 6px;
   cursor: pointer;
-  white-space: nowrap;
-  &:hover:not(:disabled) {
-    filter: brightness(1.08);
-    border-color: ${(p) => (p.danger ? th(p).base08 : th(p).base0D)};
+  font-size: 14px;
+  color: ${(p) =>
+    p.danger
+      ? th(p).base08
+      : p.primary || p.active
+        ? th(p).base0D
+        : th(p).base04};
+  transition:
+    background 120ms,
+    color 120ms;
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background: ${(p) => th(p).base02};
+    color: ${(p) =>
+      p.danger ? th(p).base08 : p.primary ? th(p).base0D : th(p).base07};
   }
   &:disabled {
-    opacity: 0.45;
+    opacity: 0.35;
     cursor: default;
   }
 `;
 
-export const SmallButton = styled(PillButton)`
-  height: 22px;
-  padding: 0 7px;
-  font-size: 11px;
+export const Badge = styled.span`
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 12px;
+  padding: 0 3px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 12px;
+  text-align: center;
+  color: ${(p) => th(p).base00};
+  background: ${(p) => th(p).base04};
 `;
 
-export const Toggle = styled.label`
+export const SearchBox = styled.label`
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 26px;
-  white-space: nowrap;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-bottom: 1px solid ${(p) => th(p).base02};
   color: ${(p) => th(p).base04};
-  cursor: pointer;
+  font-size: 13px;
+  &:focus-within {
+    color: ${(p) => th(p).base0D};
+  }
 `;
 
-export const Banner = styled.div<{ kind: 'error' | 'success' }>`
-  padding: 6px 10px;
+export const Input = styled.input`
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  color: ${(p) => th(p).base05};
+  font-family: ${(p) => th(p).fontFamily};
   font-size: 12px;
+  &::placeholder {
+    color: ${(p) => th(p).base03};
+  }
+`;
+
+export const Status = styled.div<{ kind: 'error' | 'success' }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
   color: ${(p) => (p.kind === 'error' ? th(p).base08 : th(p).base0B)};
   border-bottom: 1px solid ${(p) => th(p).base02};
-  background: ${(p) => th(p).base01};
 `;
 
 export const List = styled.div`
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  padding: 4px;
 `;
 
-export const Row = styled.div`
+export const Actions = styled.div`
+  display: flex;
+  flex: none;
+  opacity: 0;
+  transition: opacity 120ms;
+`;
+
+export const Row = styled.div<{ accent?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-bottom: 1px solid ${(p) => th(p).base02};
+  gap: 10px;
+  min-height: 36px;
+  padding: 3px 4px 3px 8px;
+  border-radius: 6px;
+  cursor: default;
   &:hover {
     background: ${(p) => th(p).base01};
+  }
+  &:hover .actions,
+  &:focus-within .actions {
+    opacity: 1;
+  }
+  & > svg {
+    flex: none;
+    font-size: 14px;
+    color: ${(p) => (p.accent ? th(p).base0D : th(p).base03)};
   }
 `;
 
@@ -165,25 +184,45 @@ export const RowMain = styled.div`
   gap: 1px;
 `;
 
-export const RowName = styled.button`
-  all: unset;
-  font-weight: 600;
+export const RowName = styled.span`
+  font-weight: 500;
   color: ${(p) => th(p).base07};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: text;
+`;
+
+export const RenameInput = styled.input`
+  all: unset;
+  font-weight: 500;
+  color: ${(p) => th(p).base07};
+  border-bottom: 1px solid ${(p) => th(p).base0D};
 `;
 
 export const RowMeta = styled.span`
   flex: none;
-  color: ${(p) => th(p).base04};
+  color: ${(p) => th(p).base03};
   font-size: 11px;
   white-space: nowrap;
 `;
 
-export const RowActions = styled.div`
+export const Empty = styled.div`
   display: flex;
-  gap: 4px;
-  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: ${(p) => th(p).base03};
+  font-size: 12px;
+  & > svg {
+    font-size: 22px;
+  }
+`;
+
+export const Kbd = styled.kbd`
+  font-family: ${(p) => th(p).codeFontFamily};
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid ${(p) => th(p).base02};
 `;
