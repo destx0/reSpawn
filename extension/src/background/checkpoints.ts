@@ -38,6 +38,8 @@ const RESTORE_SETTLE_DELAY_MS = 150;
 const START_TIMEOUT_MS = 1500;
 /** How long to wait for a fresh state after `UPDATE` while monitored. */
 const UPDATE_TIMEOUT_MS = 300;
+/** How long to wait for the app to report an imported state. */
+const IMPORT_TIMEOUT_MS = 2500;
 
 export const CHECKPOINT_INDEX_KEY = INDEX_KEY;
 
@@ -219,10 +221,17 @@ function pickInstance(
   return keys[0];
 }
 
+/** Whether every store on a tab connection uses the Redux enhancer. */
+function onlyReduxEnhancers(connectionId: string) {
+  const { connections, options } = store.getState().instances;
+  const keys = connections[connectionId] ?? [];
+  return keys.length > 0 && keys.every((key) => options[key]?.lib === 'redux');
+}
+
 /**
  * Make sure the background holds a fresh state for the target.
- * Without an open DevTools panel apps don't report state (NgRx also ignores
- * monitor actions), so we send `START` and remember to `STOP` afterwards.
+ * Without an open DevTools panel apps don't report state, and NgRx ignores
+ * monitor actions until `START`. Returns a cleanup that undoes our `START`.
  */
 async function wake(target: ResolvedTarget): Promise<() => void> {
   const started = !hasMonitors();
@@ -235,12 +244,18 @@ async function wake(target: ResolvedTarget): Promise<() => void> {
       'No Redux DevTools store is connected on this page.',
     );
   }
-  await waitForInstanceUpdate(
-    target.connectionId,
-    started ? START_TIMEOUT_MS : UPDATE_TIMEOUT_MS,
-  );
+  // `connect()` clients (NgRx…) ignore UPDATE but report every action
+  // immediately, so only wait when the update can actually come.
+  if (started || onlyReduxEnhancers(target.connectionId)) {
+    await waitForInstanceUpdate(
+      target.connectionId,
+      started ? START_TIMEOUT_MS : UPDATE_TIMEOUT_MS,
+    );
+  }
   return () => {
-    if (started && !hasMonitors()) {
+    // Never STOP `connect()` clients: NgRx completes its `start$` stream on
+    // STOP and ignores DevTools for the rest of the page's life.
+    if (started && !hasMonitors() && onlyReduxEnhancers(target.connectionId)) {
       postToTab(target.connectionId, { type: 'STOP' });
     }
   };
@@ -379,17 +394,23 @@ export function buildImportPayload(
   return stringifyJSON(liftedState, serialize);
 }
 
-function importInto(
+/**
+ * Send `IMPORT` and wait until the app reports its new state. NgRx applies
+ * imports only after ~1s without reducer updates (for lazy reducers).
+ */
+async function importInto(
   target: ResolvedTarget,
   instanceKey: string,
   payload: string,
 ) {
+  const applied = waitForInstanceUpdate(target.connectionId, IMPORT_TIMEOUT_MS);
   postToTab(target.connectionId, {
     type: 'IMPORT',
     action: undefined,
     state: payload,
     id: instanceKey.replace(/^[^/]+\//, ''),
   });
+  await applied;
 }
 
 // ---------------------------------------------------------------------------
@@ -485,15 +506,15 @@ async function restore(
       options.serialize,
     );
 
-    importInto(target, instanceKey, payload);
+    toast(target, `Restoring “${record.name}”…`, 'info');
+    // Apply the state before navigating so guards/resolvers see it.
+    await importInto(target, instanceKey, payload);
     if (context.route !== record.route) {
       await pageGo(target, record.route);
       await delay(RESTORE_SETTLE_DELAY_MS);
       // Route guards/resolvers may have changed the state while navigating.
-      importInto(target, instanceKey, payload);
+      await importInto(target, instanceKey, payload);
     }
-    // Let the page process the import before a possible STOP.
-    await delay(100);
 
     const checkpoint = await updateMeta(record.id, (meta) => ({
       ...meta,
