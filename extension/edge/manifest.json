@@ -72,7 +72,8 @@
     "contextMenus",
     "notifications",
     "storage",
-    "tabs"
+    "tabs",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "file:///*",

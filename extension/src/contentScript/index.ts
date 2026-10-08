@@ -18,6 +18,7 @@ import {
   DispatchAction as AppDispatchAction,
 } from '@redux-devtools/app';
 import { LiftedState } from '@redux-devtools/instrument';
+import { initCheckpoints } from './checkpoints/index.js';
 
 const source = '@devtools-extension';
 const pageSource = '@devtools-page';
@@ -82,7 +83,7 @@ interface ExportAction {
 interface UpdateAction {
   readonly type: 'UPDATE';
   readonly state: string | undefined;
-  readonly id: string;
+  readonly id: string | undefined;
   readonly source: typeof source;
 }
 
@@ -338,3 +339,5 @@ function handleMessages<S, A extends Action<string>>(
 prefetchOptions();
 
 window.addEventListener('message', handleMessages, false);
+
+initCheckpoints({ isStoreConnected: () => !!bg });

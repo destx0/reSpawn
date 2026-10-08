@@ -32,6 +32,7 @@ import type {
 import type { Position } from '../../pageScript/api/openWindow.js';
 import type { BackgroundState } from './backgroundReducer.js';
 import { store } from '../index.js';
+import { isCheckpointRequest } from '../../checkpoints/messages.js';
 
 interface TabMessageBase {
   readonly type: string;
@@ -54,6 +55,12 @@ interface StopAction extends TabMessageBase {
 interface OptionsAction {
   readonly type: 'OPTIONS';
   readonly options: Options;
+}
+
+interface UpdateAction extends TabMessageBase {
+  readonly type: 'UPDATE';
+  readonly state?: never;
+  readonly id?: never;
 }
 
 interface DispatchAction extends TabMessageBase {
@@ -197,6 +204,7 @@ interface SplitUpdateStateAction<S, A extends Action<string>> {
 export type TabMessage =
   | StartAction
   | StopAction
+  | UpdateAction
   | OptionsAction
   | DispatchAction
   | ImportAction
@@ -234,6 +242,44 @@ const chunks: {
   >;
 } = {};
 let monitors = 0;
+const instanceUpdateListeners: {
+  [connectionId: string]: Set<() => void>;
+} = {};
+
+export function getTabConnectionIds() {
+  return Object.keys(connections.tab);
+}
+
+export function hasMonitors() {
+  return monitors > 0;
+}
+
+/** Post a message to a tab connection (`<tabId>` or `<tabId>-<frameId>`). */
+export function postToTab(connectionId: string | number, message: TabMessage) {
+  const port = connections.tab[connectionId];
+  if (!port) return false;
+  port.postMessage(message);
+  return true;
+}
+
+/** Resolves `true` on the next state update from a tab connection. */
+export function waitForInstanceUpdate(
+  connectionId: string | number,
+  timeoutMs: number,
+) {
+  return new Promise<boolean>((resolve) => {
+    const key = String(connectionId);
+    const listeners = (instanceUpdateListeners[key] ??= new Set());
+    const done = (updated: boolean) => {
+      clearTimeout(timer);
+      listeners.delete(onUpdate);
+      resolve(updated);
+    };
+    const onUpdate = () => done(true);
+    const timer = setTimeout(() => done(false), timeoutMs);
+    listeners.add(onUpdate);
+  });
+}
 
 const getId = (sender: chrome.runtime.MessageSender, name?: string) =>
   sender.tab ? sender.tab.id! : name || sender.id!;
@@ -424,6 +470,8 @@ function messaging<S, A extends Action<string>>(
   request: BackgroundStoreMessage<S, A>,
   sender: chrome.runtime.MessageSender,
 ) {
+  // Checkpoint requests have their own listener (background/checkpoints.ts)
+  if (isCheckpointRequest(request)) return;
   let tabId = getId(sender);
   console.log(`Message from tab ${tabId}: ${request.type ?? request.split}`);
   if (!tabId) return;
@@ -500,6 +548,7 @@ function messaging<S, A extends Action<string>>(
   store.dispatch(action);
 
   toMonitors(action);
+  instanceUpdateListeners[String(tabId)]?.forEach((listener) => listener());
 }
 
 function disconnect(

@@ -54,7 +54,13 @@
   "externally_connectable": {
     "ids": ["*"]
   },
-  "permissions": ["notifications", "contextMenus", "storage", "tabs"],
+  "permissions": [
+    "notifications",
+    "contextMenus",
+    "storage",
+    "tabs",
+    "unlimitedStorage"
+  ],
   "host_permissions": ["file:///*", "http://*/*", "https://*/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src * 'unsafe-inline'; img-src 'self' data:;"
