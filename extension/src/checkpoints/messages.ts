@@ -21,6 +21,8 @@ export type CheckpointRequest =
   | ({
       readonly type: 'RESPAWN/RESTORE';
       readonly id: string;
+      /** Load the checkpoint's URL first when the page can't restore it in place. */
+      readonly open?: boolean;
     } & CheckpointTarget)
   | ({
       readonly type: 'RESPAWN/NAVIGATE';

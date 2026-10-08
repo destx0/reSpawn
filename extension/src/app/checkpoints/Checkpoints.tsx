@@ -16,6 +16,7 @@ import {
 import {
   CheckpointRequest,
   CheckpointResponse,
+  CheckpointTarget,
   PageContext,
   requestCheckpoints,
   ResponseMap,
@@ -60,11 +61,41 @@ function fileNameFor(checkpoint: CheckpointMeta) {
   return `respawn-${slug || 'checkpoint'}.json`;
 }
 
+function inspectedTabId(): number | undefined {
+  return typeof chrome !== 'undefined'
+    ? chrome.devtools?.inspectedWindow?.tabId
+    : undefined;
+}
+
+/** Checkpoints tab of the DevTools app (selected instance from the store). */
 export default function Checkpoints() {
   const instanceKey = useSelector((state: StoreState) =>
     getActiveInstance(state.instances),
   );
+  return (
+    <CheckpointsPanel instanceKey={instanceKey} tabId={inspectedTabId()} />
+  );
+}
+
+/** Checkpoints for the inspected tab when it has no store (yet). */
+export function NoStoreCheckpoints() {
+  const tabId = inspectedTabId();
+  return tabId === undefined ? null : <CheckpointsPanel tabId={tabId} />;
+}
+
+interface PanelProps {
+  /** Selected DevTools instance (`<tabId>/<id>`), when a store is connected. */
+  readonly instanceKey?: string | number;
+  /** Inspected tab, used when there is no store to target. */
+  readonly tabId?: number;
+}
+
+export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
   const hasStore = instanceKey !== 'default' && instanceKey !== undefined;
+  const target = useMemo<CheckpointTarget | null>(
+    () => (hasStore ? { instanceKey } : tabId !== undefined ? { tabId } : null),
+    [hasStore, instanceKey, tabId],
+  );
 
   const [checkpoints, setCheckpoints] = useState<CheckpointMeta[]>([]);
   const [context, setContext] = useState<PageContext | null>(null);
@@ -84,13 +115,13 @@ export default function Checkpoints() {
   }, []);
 
   const loadContext = useCallback(async () => {
-    if (!hasStore) {
+    if (!target) {
       setContext(null);
       return;
     }
     const response = await requestCheckpoints({
       type: 'RESPAWN/CONTEXT',
-      instanceKey,
+      ...target,
     });
     if (response.ok) {
       setContext(response.context);
@@ -98,7 +129,7 @@ export default function Checkpoints() {
     } else {
       setContext(null);
     }
-  }, [hasStore, instanceKey]);
+  }, [target]);
 
   useEffect(() => {
     const initial = setTimeout(() => void loadList(), 0);
@@ -168,16 +199,16 @@ export default function Checkpoints() {
 
   const save = async () => {
     const response = await run(
-      { type: 'RESPAWN/SAVE', instanceKey, name: saveName || undefined },
+      { type: 'RESPAWN/SAVE', ...target, name: saveName || undefined },
       (r) => (r.ok ? `Saved “${r.checkpoint.name}”.` : ''),
     );
     if (response.ok) setSaveName('');
   };
 
   const go = async () => {
-    if (!route.trim()) return;
+    if (!route.trim() || !target) return;
     const response = await run(
-      { type: 'RESPAWN/NAVIGATE', instanceKey, route },
+      { type: 'RESPAWN/NAVIGATE', ...target, route },
       (r) => (r.ok ? `Navigated to ${r.route}.` : ''),
     );
     if (response.ok) setRoute('');
@@ -217,9 +248,9 @@ export default function Checkpoints() {
             <Hint title={context?.url}>
               {context
                 ? context.route
-                : hasStore
+                : target
                   ? 'Connecting to the page…'
-                  : 'No store found. Open a page that uses Redux DevTools.'}
+                  : 'No page to inspect.'}
             </Hint>
           </div>
         </Bar>
@@ -253,7 +284,7 @@ export default function Checkpoints() {
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void go();
               }}
-              disabled={!hasStore}
+              disabled={!target}
               spellCheck={false}
             />
             {route.trim() && (
@@ -265,7 +296,7 @@ export default function Checkpoints() {
             )}
           </Field>
           <PillButton
-            disabled={!hasStore || busy || !resolvedRoute}
+            disabled={!target || busy || !resolvedRoute}
             onClick={() => void go()}
           >
             Go
@@ -325,13 +356,24 @@ export default function Checkpoints() {
             key={checkpoint.id}
             checkpoint={checkpoint}
             showOrigin={allSites}
-            canRestore={
-              hasStore && !busy && context?.origin === checkpoint.origin
+            restoreMode={
+              !target || !context
+                ? 'disabled'
+                : context.origin === checkpoint.origin && hasStore
+                  ? 'restore'
+                  : 'open'
             }
+            canGo={!!target && context?.origin === checkpoint.origin}
             busy={busy}
             onRestore={() =>
               void run(
-                { type: 'RESPAWN/RESTORE', id: checkpoint.id, instanceKey },
+                // `open` loads the checkpoint URL first when needed.
+                {
+                  type: 'RESPAWN/RESTORE',
+                  id: checkpoint.id,
+                  open: true,
+                  ...target,
+                },
                 (r) => (r.ok ? `Restored “${r.checkpoint.name}”.` : ''),
               )
             }
@@ -340,7 +382,7 @@ export default function Checkpoints() {
                 {
                   type: 'RESPAWN/NAVIGATE',
                   route: checkpoint.route,
-                  instanceKey,
+                  ...target,
                 },
                 (r) => (r.ok ? `Navigated to ${r.route}.` : ''),
               )

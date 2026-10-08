@@ -40,6 +40,8 @@ const START_TIMEOUT_MS = 1500;
 const UPDATE_TIMEOUT_MS = 300;
 /** How long to wait for the app to report an imported state. */
 const IMPORT_TIMEOUT_MS = 2500;
+/** How long to wait for a page opened by "Open & restore". */
+const OPEN_TIMEOUT_MS = 15000;
 
 export const CHECKPOINT_INDEX_KEY = INDEX_KEY;
 
@@ -320,6 +322,43 @@ function toast(target: ResolvedTarget, text: string, kind: ToastKind) {
   ).catch(() => undefined);
 }
 
+function waitForTabComplete(tabId: number, timeoutMs: number) {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      reject(new CheckpointError('The page took too long to load.'));
+    }, timeoutMs);
+    function onUpdated(updatedTabId: number, info: { status?: string }) {
+      if (updatedTabId !== tabId || info.status !== 'complete') return;
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      resolve();
+    }
+    chrome.tabs.onUpdated.addListener(onUpdated);
+  });
+}
+
+/**
+ * Load `url` in the tab and wait until its store connects to DevTools.
+ * Used to restore a checkpoint from another site or into a fresh tab.
+ */
+async function openInTab(tabId: number, url: string): Promise<ResolvedTarget> {
+  const loaded = waitForTabComplete(tabId, OPEN_TIMEOUT_MS);
+  await chrome.tabs.update(tabId, { url });
+  await loaded;
+  const connectionId = String(tabId);
+  const deadline = Date.now() + OPEN_TIMEOUT_MS;
+  while (!getTabConnectionIds().includes(connectionId)) {
+    if (Date.now() > deadline) {
+      throw new CheckpointError(
+        `${new URL(url).host} loaded, but no Redux DevTools store connected.`,
+      );
+    }
+    await delay(100);
+  }
+  return { tabId, frameId: 0, connectionId };
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -478,12 +517,19 @@ async function restore(
   sender: chrome.runtime.MessageSender,
 ): Promise<ResponseMap['RESPAWN/RESTORE']> {
   const record = await readRecord(request.id);
-  const target = resolveTarget(request, sender);
-  const context = await pageContext(target);
-  if (context.origin !== record.origin) {
-    throw new CheckpointError(
-      `“${record.name}” was saved on ${record.origin}, but this page is ${context.origin}.`,
-    );
+  let target = resolveTarget(request, sender);
+  let context = await pageContext(target);
+  const connected = getTabConnectionIds().includes(target.connectionId);
+  if (context.origin !== record.origin || !connected) {
+    if (!request.open) {
+      throw new CheckpointError(
+        context.origin !== record.origin
+          ? `“${record.name}” was saved on ${record.origin}, but this page is ${context.origin}.`
+          : 'No Redux DevTools store is connected on this page.',
+      );
+    }
+    target = await openInTab(target.tabId, record.url);
+    context = await pageContext(target);
   }
   const stop = await wake(target);
   try {

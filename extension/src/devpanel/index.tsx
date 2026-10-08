@@ -9,7 +9,9 @@ import {
   StoreState,
   UPDATE_STATE,
 } from '@redux-devtools/app';
+import { Container } from '@redux-devtools/ui';
 import App from '../app/App.js';
+import { NoStoreCheckpoints } from '../app/checkpoints/Checkpoints.js';
 import configureStore from './store/panelStore.js';
 
 import { Action, Store } from 'redux';
@@ -42,6 +44,22 @@ function renderNodeAtRoot(node: ReactNode) {
   if (currentRoot) currentRoot.unmount();
   currentRoot = createRoot(document.getElementById('root')!);
   currentRoot.render(node);
+}
+
+// Without a store, still offer checkpoints so they can be opened in this tab.
+function withCheckpoints(message: ReactNode) {
+  return (
+    <Container
+      themeData={{
+        theme: 'default',
+        scheme: 'default',
+        colorPreference: 'auto',
+      }}
+    >
+      {message}
+      <NoStoreCheckpoints />
+    </Container>
+  );
 }
 
 function renderDevTools() {
@@ -97,11 +115,11 @@ function renderNA() {
           );
         }
 
-        renderNodeAtRoot(message);
+        renderNodeAtRoot(withCheckpoints(message));
         store = undefined;
       });
     } else {
-      renderNodeAtRoot(message);
+      renderNodeAtRoot(withCheckpoints(message));
       store = undefined;
     }
   }, 3500);

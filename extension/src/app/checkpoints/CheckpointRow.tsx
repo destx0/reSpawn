@@ -18,7 +18,9 @@ import {
 interface Props {
   readonly checkpoint: CheckpointMeta;
   readonly showOrigin: boolean;
-  readonly canRestore: boolean;
+  /** `open` loads the checkpoint URL in this tab before restoring. */
+  readonly restoreMode: 'restore' | 'open' | 'disabled';
+  readonly canGo: boolean;
   readonly busy: boolean;
   readonly onRestore: () => void;
   readonly onGo: () => void;
@@ -30,7 +32,8 @@ interface Props {
 export default function CheckpointRow({
   checkpoint,
   showOrigin,
-  canRestore,
+  restoreMode,
+  canGo,
   busy,
   onRestore,
   onGo,
@@ -57,9 +60,11 @@ export default function CheckpointRow({
   };
 
   const activity = checkpoint.lastUsedAt ?? checkpoint.createdAt;
-  const restoreTitle = canRestore
-    ? 'Restore this state and navigate to its route'
-    : `Open ${checkpoint.origin} to restore this checkpoint`;
+  const canRestore = restoreMode !== 'disabled' && !busy;
+  const restoreTitle =
+    restoreMode === 'open'
+      ? `Load ${checkpoint.url} in this tab, then restore the state`
+      : 'Restore this state and navigate to its route';
 
   return (
     <Row>
@@ -106,10 +111,10 @@ export default function CheckpointRow({
           title={restoreTitle}
           onClick={onRestore}
         >
-          Restore
+          {restoreMode === 'open' ? 'Open' : 'Restore'}
         </SmallButton>
         <SmallButton
-          disabled={!canRestore}
+          disabled={!canGo || busy}
           title="Navigate to this route without changing state"
           onClick={onGo}
         >
