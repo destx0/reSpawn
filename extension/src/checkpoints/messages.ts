@@ -1,4 +1,4 @@
-import type { CheckpointMeta, CheckpointRecord } from './core.js';
+import type { CheckpointExport, CheckpointMeta } from './core.js';
 
 /**
  * Identifies the page a request targets. The panel passes the selected
@@ -21,7 +21,7 @@ export type CheckpointRequest =
   | ({
       readonly type: 'RESPAWN/RESTORE';
       readonly id: string;
-      /** Load the checkpoint's URL first when the page can't restore it in place. */
+      /** Load the checkpoint's route first when the page has no connected store. */
       readonly open?: boolean;
     } & CheckpointTarget)
   | ({
@@ -59,7 +59,7 @@ export interface ResponseMap {
   'RESPAWN/NAVIGATE': { route: string };
   'RESPAWN/RENAME': { checkpoint: CheckpointMeta };
   'RESPAWN/DELETE': object;
-  'RESPAWN/EXPORT': { record: CheckpointRecord };
+  'RESPAWN/EXPORT': { record: CheckpointExport };
   'RESPAWN/IMPORT': { checkpoint: CheckpointMeta };
 }
 

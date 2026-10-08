@@ -237,7 +237,7 @@ async function main() {
   const exported = await bg({ type: 'RESPAWN/EXPORT', id: rxCheckpoint.id });
   check(
     'redux: saved state is the app state',
-    exported.ok && JSON.parse(exported.record.state).count === 2,
+    exported.ok && exported.record.state.count === 2,
     exported,
   );
 
@@ -432,7 +432,7 @@ async function main() {
   const ngExport =
     ngSave.ok &&
     (await bg({ type: 'RESPAWN/EXPORT', id: ngSave.checkpoint.id }));
-  const ngSaved = ngExport?.ok && JSON.parse(ngExport.record.state);
+  const ngSaved = ngExport?.ok && ngExport.record.state;
   check(
     'ngrx: saved NgRx root state',
     ngSaved && ngSaved.cart?.join() === 'apple' && ngSaved.wizard?.step === 2,
@@ -539,18 +539,6 @@ async function main() {
     'ngrx: restore with panel open',
     monitored.ok && monitoredState,
     monitored,
-  );
-
-  // Cross-origin guard.
-  const cross = await bg({
-    type: 'RESPAWN/RESTORE',
-    id: rxCheckpoint.id,
-    tabId: ngTab,
-  });
-  check(
-    'restore on another origin is refused',
-    !cross.ok && /was saved on/.test(cross.error),
-    cross,
   );
 
   // Rename duplicate guard, rename, delete.
@@ -702,12 +690,11 @@ async function main() {
     (await bg({ type: 'RESPAWN/EXPORT', id: lateSave.checkpoint.id }));
   check(
     'ngrx: save after closing the panel is fresh',
-    !!lateExport?.ok &&
-      JSON.parse(lateExport.record.state).cart.includes('late'),
-    lateExport?.ok ? JSON.parse(lateExport.record.state) : lateSave,
+    !!lateExport?.ok && lateExport.record.state.cart.includes('late'),
+    lateExport?.ok ? lateExport.record.state : lateSave,
   );
 
-  // Open & restore: from a tab on another origin, and from a blank tab.
+  // Restore across origins, and respawn into a blank tab.
   const other = await openTab('http://127.0.0.1:8701/');
   await waitFor(
     other.sessionId,
@@ -717,28 +704,66 @@ async function main() {
     ext.sessionId,
     `chrome.tabs.query({ url: 'http://127.0.0.1:8701/' }).then((t) => t[0] && t[0].id)`,
   );
-  const refused = await bg({
-    type: 'RESPAWN/RESTORE',
-    id: ngSave.checkpoint.id,
-    tabId: otherTab,
-  });
-  check('open: refused without open flag', !refused.ok, refused);
-  const opened2 = await bg({
-    type: 'RESPAWN/RESTORE',
-    id: ngSave.checkpoint.id,
-    tabId: otherTab,
-    open: true,
-  });
-  check('open: restore across origins responds ok', opened2.ok, opened2);
-  const openedState = await waitFor(
+  // Palette: Alt+A shows other sites' checkpoints, Alt+E exports one.
+  const shadow = `document.getElementById('respawn-palette-host')?.shadowRoot`;
+  await send('Page.bringToFront', {}, other.sessionId);
+  await key(other.sessionId, 'KeyP', 'p', 1);
+  const badge = await waitFor(
     other.sessionId,
-    `location.origin === 'http://127.0.0.1:8702' && document.getElementById('page')?.textContent === 'workflow' && (() => { const s = JSON.parse(document.getElementById('state').textContent); return s.cart.join() === 'apple' && s.wizard.step === 2 })()`,
+    `${shadow}?.querySelector('.tool .badge')?.textContent`,
+    3000,
+  ).catch((e) => e.message);
+  check('palette: globe badge counts other sites', Number(badge) > 0, badge);
+  await key(other.sessionId, 'KeyA', 'a', 1);
+  const foreign = await waitFor(
+    other.sessionId,
+    `(() => { const s = [...${shadow}.querySelectorAll('.row .sub')].map(e => e.textContent); return s.some(t => t.startsWith('127.0.0.1:8702')) ? s : null })()`,
+    3000,
+  ).catch((e) => e.message);
+  check(
+    'palette: Alt+A lists other sites with their host',
+    Array.isArray(foreign),
+    foreign,
+  );
+  const shared = await evaluate(
+    ext.sessionId,
+    `chrome.storage.local.get('respawn:checkpoints:allSites').then((r) => r['respawn:checkpoints:allSites'])`,
+  );
+  check(
+    'palette: all-sites toggle is stored for the panel',
+    shared === true,
+    shared,
+  );
+  await key(other.sessionId, 'KeyE', 'e', 1);
+  const exportedToast = await waitFor(
+    other.sessionId,
+    `document.getElementById('respawn-toast-host')?.shadowRoot.querySelector('.message')?.textContent.startsWith('Exported')`,
+    3000,
+  ).catch((e) => e.message);
+  check(
+    'palette: Alt+E exports the active checkpoint',
+    exportedToast === true,
+    exportedToast,
+  );
+  await key(other.sessionId, 'KeyA', 'a', 1);
+  await pressNamed(other.sessionId, 'Escape');
+
+  // Another origin (e.g. localhost vs. staging) restores in place.
+  const here = await bg({
+    type: 'RESPAWN/RESTORE',
+    id: ngSave.checkpoint.id,
+    tabId: otherTab,
+  });
+  check('cross-origin: restore responds ok', here.ok, here);
+  const hereState = await waitFor(
+    other.sessionId,
+    `location.origin === 'http://127.0.0.1:8701' && location.pathname === '/workflow' && (() => { const s = reduxTest.store.getState(); return s.cart?.join() === 'apple' && s.wizard?.step === 2 })()`,
     6000,
   ).catch((e) => e.message);
   check(
-    'open: tab loads the checkpoint URL with its state',
-    openedState === true,
-    openedState,
+    'cross-origin: state applied on this site at the checkpoint route',
+    hereState === true,
+    hereState,
   );
 
   const blank = await openTab('about:blank');

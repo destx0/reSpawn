@@ -4,6 +4,7 @@ import {
   isRouteQuery,
   nextAutomaticName,
   normalizeImportedCheckpoint,
+  toCheckpointExport,
   recentActivityFirst,
   resolveRouteForUrl,
   resolveRouteQuery,
@@ -140,26 +141,29 @@ describe('normalizeImportedCheckpoint', () => {
     expect(record?.id).not.toBe('old');
   });
 
-  it('keeps reSpawn exports as-is', () => {
+  it('round-trips an export with state as a JSON object', () => {
+    const stored = {
+      version: 1,
+      id: 'x',
+      name: 'n',
+      origin: 'https://app.test',
+      route: '/a',
+      url: 'https://app.test/a',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      size: 33,
+      serialize: false,
+      state: '{"a":{"b":1},"c":{"$jsan":"$.a"}}',
+    };
+    const exported = toCheckpointExport(stored);
+    expect(exported.state).toEqual({ a: { b: 1 }, c: { $jsan: '$.a' } });
     const record = normalizeImportedCheckpoint(
-      {
-        version: 1,
-        id: 'x',
-        name: 'n',
-        origin: 'https://app.test',
-        route: '/a',
-        url: 'https://app.test/a',
-        serialize: true,
-        state: '{"a":1}',
-      },
+      JSON.parse(JSON.stringify(exported)),
       stringify,
       'http://other.test',
     );
     expect(record).toMatchObject({
       origin: 'https://app.test',
-      serialize: true,
-      state: '{"a":1}',
-      size: 7,
+      state: stored.state,
     });
   });
 

@@ -31,6 +31,13 @@ import {
   requestCheckpoints,
   ResponseMap,
 } from '../../checkpoints/messages.js';
+import {
+  ALL_SITES_KEY,
+  downloadCheckpoint,
+  readAllSites,
+  readCheckpointFile,
+  writeAllSites,
+} from '../../checkpoints/files.js';
 import CheckpointRow from './CheckpointRow.js';
 import {
   Badge,
@@ -54,26 +61,6 @@ import {
 const INDEX_KEY = 'respawn:checkpoints:index';
 
 type StatusMessage = { kind: 'error' | 'success'; text: string } | null;
-
-function downloadJson(fileName: string, data: unknown) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function fileNameFor(checkpoint: CheckpointMeta) {
-  const slug = checkpoint.name
-    .replace(/[^a-z0-9]+/gi, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase();
-  return `respawn-${slug || 'checkpoint'}.json`;
-}
 
 function inspectedTabId(): number | undefined {
   return typeof chrome !== 'undefined'
@@ -151,12 +138,19 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
   }, [target]);
 
   useEffect(() => {
-    const initial = setTimeout(() => void loadList(), 0);
+    const initial = setTimeout(() => {
+      void loadList();
+      void readAllSites().then(setAllSites);
+    }, 0);
     const onChanged = (
       changes: { [key: string]: chrome.storage.StorageChange },
       area: string,
     ) => {
-      if (area === 'local' && changes[INDEX_KEY]) void loadList();
+      if (area !== 'local') return;
+      if (changes[INDEX_KEY]) void loadList();
+      if (changes[ALL_SITES_KEY]) {
+        setAllSites(changes[ALL_SITES_KEY].newValue === true);
+      }
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => {
@@ -237,9 +231,9 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
   const importFile = async (file: File) => {
     let data: unknown;
     try {
-      data = JSON.parse(await file.text());
-    } catch {
-      setStatus({ kind: 'error', text: `${file.name} is not valid JSON.` });
+      data = await readCheckpointFile(file);
+    } catch (error) {
+      setStatus({ kind: 'error', text: (error as Error).message });
       return;
     }
     await run({ type: 'RESPAWN/IMPORT', data, origin: context?.origin }, (r) =>
@@ -249,7 +243,7 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
 
   const exportCheckpoint = async (checkpoint: CheckpointMeta) => {
     const response = await run({ type: 'RESPAWN/EXPORT', id: checkpoint.id });
-    if (response.ok) downloadJson(fileNameFor(checkpoint), response.record);
+    if (response.ok) downloadCheckpoint(response.record);
   };
 
   const otherSites = context
@@ -268,7 +262,7 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
         <IconButton
           active={allSites}
           title={allSites ? 'Showing all sites' : 'Show all sites'}
-          onClick={() => setAllSites(!allSites)}
+          onClick={() => void writeAllSites(!allSites)}
         >
           <FiGlobe />
           {!allSites && otherSites > 0 && <Badge>{otherSites}</Badge>}
@@ -358,17 +352,13 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
             checkpoint={checkpoint}
             showOrigin={allSites}
             restoreMode={
-              !target || !context
-                ? 'disabled'
-                : context.origin === checkpoint.origin && hasStore
-                  ? 'restore'
-                  : 'open'
+              !target || !context ? 'disabled' : hasStore ? 'restore' : 'open'
             }
-            canGo={!!target && context?.origin === checkpoint.origin}
+            canGo={!!target}
             busy={busy}
             onRestore={() =>
               void run(
-                // `open` loads the checkpoint URL first when needed.
+                // `open` loads the checkpoint route first when there is no store.
                 {
                   type: 'RESPAWN/RESTORE',
                   id: checkpoint.id,

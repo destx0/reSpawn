@@ -26,6 +26,19 @@ export interface CheckpointRecord extends CheckpointMeta {
   readonly state: string;
 }
 
+/** An exported checkpoint file: `state` is a JSON value, so it can be edited. */
+export interface CheckpointExport extends Omit<CheckpointRecord, 'state'> {
+  readonly state: unknown;
+}
+
+/**
+ * jsan output is JSON text (circular refs become `{ "$jsan": … }` markers),
+ * so it parses into a plain value and `JSON.stringify` restores it on import.
+ */
+export function toCheckpointExport(record: CheckpointRecord): CheckpointExport {
+  return { ...record, state: JSON.parse(record.state) as unknown };
+}
+
 export const ROUTE_PREFIXES = ['/', './', '../'] as const;
 
 export function isRouteQuery(query: string): boolean {
@@ -218,8 +231,8 @@ function originOf(url: string): string {
 }
 
 /**
- * Validate an imported file. Accepts reSpawn exports and inspector-ng
- * version 1 exports (`state` as a plain object, no origin/url).
+ * Validate an imported file: a reSpawn export, or an inspector-ng version 1
+ * export (no origin/url). `state` is a plain JSON value in both.
  * `stringify` serializes a raw state object.
  */
 export function normalizeImportedCheckpoint(
@@ -237,8 +250,8 @@ export function normalizeImportedCheckpoint(
   ) {
     return null;
   }
-  const isRespawn = typeof v.state === 'string' && typeof v.origin === 'string';
-  const state = isRespawn ? (v.state as string) : stringify(v.state);
+  const state = stringify(v.state);
+  if (typeof state !== 'string') return null;
   const url = typeof v.url === 'string' ? v.url : '';
   const origin =
     (typeof v.origin === 'string' && v.origin) ||
@@ -255,7 +268,7 @@ export function normalizeImportedCheckpoint(
       typeof v.instanceName === 'string' ? v.instanceName : undefined,
     createdAt: new Date().toISOString(),
     size: state.length,
-    serialize: isRespawn ? v.serialize === true : false,
+    serialize: v.serialize === true,
     state,
   };
 }

@@ -5,7 +5,15 @@ import {
   isRouteQuery,
   resolveRouteForUrl,
 } from '../../checkpoints/core.js';
+import {
+  ALL_SITES_KEY,
+  downloadCheckpoint,
+  readAllSites,
+  readCheckpointFile,
+  writeAllSites,
+} from '../../checkpoints/files.js';
 import { requestCheckpoints } from '../../checkpoints/messages.js';
+import { showToast } from './toast.js';
 
 const HOST_ID = 'respawn-palette-host';
 const INDEX_KEY = 'respawn:checkpoints:index';
@@ -28,7 +36,27 @@ const ICONS = {
     '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   ),
   check: svg('<path d="M20 6 9 17l-5-5"/>'),
+  globe: svg(
+    '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  ),
+  upload: svg(
+    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+  ),
+  download: svg(
+    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  ),
 };
+
+/** Alt+<letter> palette shortcuts, matched by `code` (macOS Option types symbols). */
+function altKey(event: KeyboardEvent, code: string) {
+  return (
+    event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey &&
+    event.code === code
+  );
+}
 
 const STYLE = `
 :host { all: initial; }
@@ -105,7 +133,15 @@ input::placeholder { color: var(--faint); }
   width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px;
   background: transparent; color: var(--muted); cursor: pointer;
 }
-.row.active .btn, .btn.confirm { display: grid; }
+.row.active .btn, .btn.confirm, .btn.tool { display: grid; }
+.btn.tool { position: relative; color: var(--faint); }
+.btn.tool.on { color: var(--accent); }
+.badge {
+  position: absolute; top: -2px; right: -4px;
+  min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
+  background: var(--accent); color: var(--bg);
+  font-size: 9.5px; font-weight: 600; line-height: 14px; text-align: center;
+}
 .row.active .meta { display: none; }
 .btn:hover { color: var(--fg); background: var(--line); }
 .btn.confirm, .btn.confirm:hover { color: var(--danger); }
@@ -134,7 +170,11 @@ class Palette {
   private input!: HTMLInputElement;
   private list!: HTMLUListElement;
   private errorBox!: HTMLDivElement;
+  private globeButton!: HTMLButtonElement;
+  private fileInput!: HTMLInputElement;
+  private allCheckpoints: CheckpointMeta[] = [];
   private checkpoints: CheckpointMeta[] = [];
+  private allSites = false;
   private items: Item[] = [];
   private active = 0;
   private renamingId: string | null = null;
@@ -187,7 +227,26 @@ class Palette {
       this.setError(null);
       this.render();
     });
-    search.append(this.input);
+    this.globeButton = this.button(
+      ICONS.globe,
+      '',
+      () => void this.toggleAllSites(),
+    );
+    this.globeButton.classList.add('tool');
+    const importButton = this.button(ICONS.upload, 'Import JSON (Alt+I)', () =>
+      this.fileInput.click(),
+    );
+    importButton.classList.add('tool');
+    this.fileInput = document.createElement('input');
+    this.fileInput.type = 'file';
+    this.fileInput.accept = 'application/json,.json';
+    this.fileInput.hidden = true;
+    this.fileInput.addEventListener('change', () => {
+      const file = this.fileInput.files?.[0];
+      this.fileInput.value = '';
+      if (file) void this.importFile(file);
+    });
+    search.append(this.input, this.globeButton, importButton, this.fileInput);
 
     this.errorBox = document.createElement('div');
     this.errorBox.className = 'error';
@@ -203,6 +262,7 @@ class Palette {
     footer.innerHTML =
       '<span><kbd>↵</kbd>restore</span>' +
       '<span><kbd>⇧↵</kbd>go</span>' +
+      '<span><kbd>alt A</kbd>all sites</span>' +
       '<span><kbd>esc</kbd>close</span>';
 
     dialog.append(search, this.list, this.errorBox, footer);
@@ -246,19 +306,28 @@ class Palette {
     changes: { [key: string]: chrome.storage.StorageChange },
     area: string,
   ) => {
-    if (area === 'local' && changes[INDEX_KEY]) void this.refresh();
+    if (area === 'local' && (changes[INDEX_KEY] || changes[ALL_SITES_KEY])) {
+      void this.refresh();
+    }
   };
 
   private async refresh() {
-    const response = await requestCheckpoints({ type: 'RESPAWN/LIST' });
+    const [response, allSites] = await Promise.all([
+      requestCheckpoints({ type: 'RESPAWN/LIST' }),
+      readAllSites(),
+    ]);
     if (!this.host) return;
     if (!response.ok) {
       this.setError(response.error);
       return;
     }
-    this.checkpoints = response.checkpoints.filter(
-      (checkpoint) => checkpoint.origin === location.origin,
-    );
+    this.allSites = allSites;
+    this.allCheckpoints = response.checkpoints;
+    this.checkpoints = allSites
+      ? response.checkpoints
+      : response.checkpoints.filter(
+          (checkpoint) => checkpoint.origin === location.origin,
+        );
     this.render();
   }
 
@@ -286,6 +355,7 @@ class Palette {
 
   private render() {
     if (!this.host) return;
+    this.renderGlobe();
     this.items = this.computeItems();
     if (this.active >= this.items.length) this.active = this.items.length - 1;
     if (this.active < 0) this.active = 0;
@@ -294,7 +364,9 @@ class Palette {
     if (!this.checkpoints.length && !this.input.value.trim()) {
       const empty = document.createElement('li');
       empty.className = 'empty';
-      empty.textContent = 'No checkpoints yet';
+      empty.textContent = this.allCheckpoints.length
+        ? 'No checkpoints for this site · Alt+A shows all'
+        : 'No checkpoints yet';
       rows.unshift(empty);
     }
     this.list.replaceChildren(...rows);
@@ -371,14 +443,24 @@ class Palette {
         main.replaceChildren(rename);
       } else {
         title.textContent = checkpoint.name;
-        if (checkpoint.name !== checkpoint.route) {
-          sub.textContent = checkpoint.route;
-        }
+        const host =
+          checkpoint.origin === location.origin
+            ? ''
+            : new URL(checkpoint.origin).host;
+        sub.textContent =
+          checkpoint.name === checkpoint.route
+            ? host
+            : `${host}${checkpoint.route}`;
       }
       const meta = document.createElement('span');
       meta.className = 'meta';
       meta.textContent = formatRelativeTime(
         checkpoint.lastUsedAt ?? checkpoint.createdAt,
+      );
+      const exportButton = this.button(
+        ICONS.download,
+        'Export JSON (Alt+E)',
+        () => void this.exportCheckpoint(checkpoint),
       );
       const renameButton = this.button(ICONS.edit, 'Rename (F2)', () => {
         this.renamingId = checkpoint.id;
@@ -392,7 +474,7 @@ class Palette {
       );
       deleteButton.classList.add('delete');
       if (confirming) deleteButton.classList.add('confirm');
-      row.append(meta, renameButton, deleteButton);
+      row.append(meta, exportButton, renameButton, deleteButton);
     }
     return row;
   }
@@ -411,9 +493,45 @@ class Palette {
     return button;
   }
 
+  private renderGlobe() {
+    const others = this.allCheckpoints.filter(
+      (checkpoint) => checkpoint.origin !== location.origin,
+    ).length;
+    const label = this.allSites
+      ? 'Showing all sites (Alt+A)'
+      : 'Show all sites (Alt+A)';
+    this.globeButton.title = label;
+    this.globeButton.setAttribute('aria-label', label);
+    this.globeButton.setAttribute('aria-pressed', String(this.allSites));
+    this.globeButton.classList.toggle('on', this.allSites);
+    this.globeButton.innerHTML = ICONS.globe;
+    if (!this.allSites && others > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = String(others);
+      this.globeButton.append(badge);
+    }
+  }
+
   private onKeyDown(event: KeyboardEvent) {
     if (this.renamingId || event.isComposing) return;
     const item = this.items[this.active];
+    if (altKey(event, 'KeyA')) {
+      event.preventDefault();
+      void this.toggleAllSites();
+      return;
+    }
+    if (altKey(event, 'KeyI')) {
+      event.preventDefault();
+      this.fileInput.click();
+      return;
+    }
+    if (altKey(event, 'KeyE')) {
+      event.preventDefault();
+      if (item?.kind === 'checkpoint')
+        void this.exportCheckpoint(item.checkpoint);
+      return;
+    }
     switch (event.key) {
       case 'Escape':
         event.preventDefault();
@@ -489,6 +607,48 @@ class Palette {
     } finally {
       this.busy = false;
     }
+  }
+
+  private async toggleAllSites() {
+    this.active = 0;
+    // The storage listener re-renders with the new list.
+    await writeAllSites(!this.allSites);
+  }
+
+  private async importFile(file: File) {
+    this.setError(null);
+    let data: unknown;
+    try {
+      data = await readCheckpointFile(file);
+    } catch (error) {
+      this.setError((error as Error).message);
+      return;
+    }
+    const response = await requestCheckpoints({
+      type: 'RESPAWN/IMPORT',
+      data,
+      origin: location.origin,
+    });
+    this.input.focus();
+    if (!response.ok) {
+      this.setError(response.error);
+      return;
+    }
+    showToast(`Imported “${response.checkpoint.name}”`, 'success');
+  }
+
+  private async exportCheckpoint(checkpoint: CheckpointMeta) {
+    this.setError(null);
+    const response = await requestCheckpoints({
+      type: 'RESPAWN/EXPORT',
+      id: checkpoint.id,
+    });
+    if (!response.ok) {
+      this.setError(response.error);
+      return;
+    }
+    downloadCheckpoint(response.record);
+    showToast(`Exported “${checkpoint.name}”`, 'success');
   }
 
   private async rename(id: string, name: string) {

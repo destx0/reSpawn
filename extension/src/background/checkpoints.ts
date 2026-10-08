@@ -18,6 +18,7 @@ import {
   normalizeImportedCheckpoint,
   recentActivityFirst,
   resolveRouteForUrl,
+  toCheckpointExport,
   toMeta,
 } from '../checkpoints/core.js';
 import {
@@ -358,7 +359,7 @@ function waitForTabComplete(tabId: number, timeoutMs: number) {
 
 /**
  * Load `url` in the tab and wait until its store connects to DevTools.
- * Used to restore a checkpoint from another site or into a fresh tab.
+ * Used to restore a checkpoint into a page without a connected store.
  */
 async function openInTab(tabId: number, url: string): Promise<ResolvedTarget> {
   const connectionId = String(tabId);
@@ -557,15 +558,18 @@ async function restore(
   let target = resolveTarget(request, sender);
   let context = await pageContext(target);
   const connected = getTabConnectionIds().includes(target.connectionId);
-  if (context.origin !== record.origin || !connected) {
+  if (!connected) {
     if (!request.open) {
       throw new CheckpointError(
-        context.origin !== record.origin
-          ? `“${record.name}” was saved on ${record.origin}, but this page is ${context.origin}.`
-          : 'No Redux DevTools store is connected on this page.',
+        'No Redux DevTools store is connected on this page.',
       );
     }
-    target = await openInTab(target.tabId, record.url);
+    // Stay on this site (e.g. localhost vs. staging); only a page that is not
+    // a site (about:blank, chrome://) loads the checkpoint's own URL.
+    const url = /^https?:/.test(context.origin)
+      ? `${context.origin}${record.route}`
+      : record.url;
+    target = await openInTab(target.tabId, url);
     context = await pageContext(target);
   }
   const stop = await wake(target);
@@ -702,7 +706,7 @@ async function handle(
       await deleteRecord(request.id);
       return {};
     case 'RESPAWN/EXPORT':
-      return { record: await readRecord(request.id) };
+      return { record: toCheckpointExport(await readRecord(request.id)) };
     case 'RESPAWN/IMPORT':
       return importCheckpoint(request);
   }
