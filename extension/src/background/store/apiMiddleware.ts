@@ -242,9 +242,20 @@ const chunks: {
   >;
 } = {};
 let monitors = 0;
+interface InstanceUpdate {
+  /** Full instance key, `<connectionId>/<instanceId>`. */
+  readonly instanceKey: string;
+  /** Message type: STATE (full lifted state), ACTION, INIT… */
+  readonly type: string | undefined;
+}
 const instanceUpdateListeners: {
-  [connectionId: string]: Set<() => void>;
+  [connectionId: string]: Set<(update: InstanceUpdate) => void>;
 } = {};
+
+/** The port object of a tab connection; changes when the page reconnects. */
+export function getTabPort(connectionId: string | number): unknown {
+  return connections.tab[connectionId];
+}
 
 export function getTabConnectionIds() {
   return Object.keys(connections.tab);
@@ -262,10 +273,14 @@ export function postToTab(connectionId: string | number, message: TabMessage) {
   return true;
 }
 
-/** Resolves `true` on the next state update from a tab connection. */
+/**
+ * Resolves `true` on the next update from a tab connection that matches
+ * `filter` (any update by default), or `false` after `timeoutMs`.
+ */
 export function waitForInstanceUpdate(
   connectionId: string | number,
   timeoutMs: number,
+  filter: (update: InstanceUpdate) => boolean = () => true,
 ) {
   return new Promise<boolean>((resolve) => {
     const key = String(connectionId);
@@ -275,10 +290,19 @@ export function waitForInstanceUpdate(
       listeners.delete(onUpdate);
       resolve(updated);
     };
-    const onUpdate = () => done(true);
+    const onUpdate = (update: InstanceUpdate) => {
+      if (filter(update)) done(true);
+    };
     const timer = setTimeout(() => done(false), timeoutMs);
     listeners.add(onUpdate);
   });
+}
+
+/** Whether every store on a tab connection uses the Redux enhancer. */
+export function onlyReduxEnhancers(connectionId: string | number) {
+  const { connections, options } = store.getState().instances;
+  const keys = connections[connectionId] ?? [];
+  return keys.length > 0 && keys.every((key) => options[key]?.lib === 'redux');
 }
 
 const getId = (sender: chrome.runtime.MessageSender, name?: string) =>
@@ -548,7 +572,13 @@ function messaging<S, A extends Action<string>>(
   store.dispatch(action);
 
   toMonitors(action);
-  instanceUpdateListeners[String(tabId)]?.forEach((listener) => listener());
+  const update: InstanceUpdate = {
+    instanceKey: instanceId,
+    type: (action.request as { type?: string }).type,
+  };
+  instanceUpdateListeners[String(tabId)]?.forEach((listener) =>
+    listener(update),
+  );
 }
 
 function disconnect(
@@ -570,7 +600,13 @@ function disconnect(
       }
     } else {
       monitors--;
-      if (monitors === 0) toAllTabs({ type: 'STOP' });
+      if (monitors === 0) {
+        // `connect()` clients like NgRx store-devtools stop listening to
+        // DevTools for good after STOP, so only stop Redux enhancers.
+        for (const [tabId, tabPort] of Object.entries(connections.tab)) {
+          if (onlyReduxEnhancers(tabId)) tabPort.postMessage({ type: 'STOP' });
+        }
+      }
     }
   };
 }

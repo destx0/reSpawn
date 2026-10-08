@@ -128,6 +128,7 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
       setInstanceName(response.instanceName);
     } else {
       setContext(null);
+      setInstanceName(undefined);
     }
   }, [target]);
 
@@ -148,7 +149,9 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
 
   // The page URL changes as the app navigates; poll it while visible.
   useEffect(() => {
-    const tick = () => void loadContext();
+    const tick = () => {
+      if (document.visibilityState === 'visible') void loadContext();
+    };
     const initial = setTimeout(tick, 0);
     const timer = setInterval(tick, 2000);
     return () => {

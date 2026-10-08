@@ -4,7 +4,9 @@ import type { State } from '@redux-devtools/app';
 import { store } from './index.js';
 import {
   getTabConnectionIds,
+  getTabPort,
   hasMonitors,
+  onlyReduxEnhancers,
   postToTab,
   waitForInstanceUpdate,
 } from './store/apiMiddleware.js';
@@ -223,12 +225,8 @@ function pickInstance(
   return keys[0];
 }
 
-/** Whether every store on a tab connection uses the Redux enhancer. */
-function onlyReduxEnhancers(connectionId: string) {
-  const { connections, options } = store.getState().instances;
-  const keys = connections[connectionId] ?? [];
-  return keys.length > 0 && keys.every((key) => options[key]?.lib === 'redux');
-}
+/** Active wake-ups per tab connection, so concurrent requests share START. */
+const wakeCounts = new Map<string, number>();
 
 /**
  * Make sure the background holds a fresh state for the target.
@@ -236,9 +234,10 @@ function onlyReduxEnhancers(connectionId: string) {
  * monitor actions until `START`. Returns a cleanup that undoes our `START`.
  */
 async function wake(target: ResolvedTarget): Promise<() => void> {
+  const { connectionId } = target;
   const started = !hasMonitors();
   const posted = postToTab(
-    target.connectionId,
+    connectionId,
     started ? { type: 'START' } : { type: 'UPDATE' },
   );
   if (!posted) {
@@ -246,21 +245,40 @@ async function wake(target: ResolvedTarget): Promise<() => void> {
       'No Redux DevTools store is connected on this page.',
     );
   }
-  // `connect()` clients (NgRx…) ignore UPDATE but report every action
-  // immediately, so only wait when the update can actually come.
-  if (started || onlyReduxEnhancers(target.connectionId)) {
-    await waitForInstanceUpdate(
-      target.connectionId,
-      started ? START_TIMEOUT_MS : UPDATE_TIMEOUT_MS,
-    );
-  }
-  return () => {
+  if (started)
+    wakeCounts.set(connectionId, (wakeCounts.get(connectionId) ?? 0) + 1);
+  const release = () => {
+    if (!started) return;
+    const count = (wakeCounts.get(connectionId) ?? 1) - 1;
+    if (count > 0) {
+      wakeCounts.set(connectionId, count);
+      return;
+    }
+    wakeCounts.delete(connectionId);
     // Never STOP `connect()` clients: NgRx completes its `start$` stream on
     // STOP and ignores DevTools for the rest of the page's life.
-    if (started && !hasMonitors() && onlyReduxEnhancers(target.connectionId)) {
-      postToTab(target.connectionId, { type: 'STOP' });
+    if (!hasMonitors() && onlyReduxEnhancers(connectionId)) {
+      postToTab(connectionId, { type: 'STOP' });
     }
   };
+
+  if (started) {
+    const reported = await waitForInstanceUpdate(
+      connectionId,
+      START_TIMEOUT_MS,
+    );
+    if (!reported) {
+      release();
+      throw new CheckpointError(
+        'The app is not reporting its state to DevTools. Reload the page and try again.',
+      );
+    }
+  } else if (onlyReduxEnhancers(connectionId)) {
+    // `connect()` clients (NgRx…) ignore UPDATE but report every action
+    // immediately, so only wait when the update can actually come.
+    await waitForInstanceUpdate(connectionId, UPDATE_TIMEOUT_MS);
+  }
+  return release;
 }
 
 // ---------------------------------------------------------------------------
@@ -343,12 +361,22 @@ function waitForTabComplete(tabId: number, timeoutMs: number) {
  * Used to restore a checkpoint from another site or into a fresh tab.
  */
 async function openInTab(tabId: number, url: string): Promise<ResolvedTarget> {
-  const loaded = waitForTabComplete(tabId, OPEN_TIMEOUT_MS);
-  await chrome.tabs.update(tabId, { url });
-  await loaded;
   const connectionId = String(tabId);
+  const previousPort = getTabPort(connectionId);
+  const loaded = waitForTabComplete(tabId, OPEN_TIMEOUT_MS);
+  try {
+    await chrome.tabs.update(tabId, { url });
+  } catch (error) {
+    loaded.catch(() => undefined);
+    throw error;
+  }
+  await loaded;
   const deadline = Date.now() + OPEN_TIMEOUT_MS;
-  while (!getTabConnectionIds().includes(connectionId)) {
+  // Wait for the new page's store, not the old page's port.
+  while (
+    !getTabPort(connectionId) ||
+    getTabPort(connectionId) === previousPort
+  ) {
     if (Date.now() > deadline) {
       throw new CheckpointError(
         `${new URL(url).host} loaded, but no Redux DevTools store connected.`,
@@ -442,14 +470,23 @@ async function importInto(
   instanceKey: string,
   payload: string,
 ) {
-  const applied = waitForInstanceUpdate(target.connectionId, IMPORT_TIMEOUT_MS);
-  postToTab(target.connectionId, {
+  // The app answers an import with a full STATE report for that instance.
+  const applied = waitForInstanceUpdate(
+    target.connectionId,
+    IMPORT_TIMEOUT_MS,
+    (update) => update.instanceKey === instanceKey && update.type === 'STATE',
+  );
+  const posted = postToTab(target.connectionId, {
     type: 'IMPORT',
     action: undefined,
     state: payload,
     id: instanceKey.replace(/^[^/]+\//, ''),
   });
-  await applied;
+  if (!posted || !(await applied)) {
+    throw new CheckpointError(
+      'The app did not apply the restored state. It may have reloaded; try again.',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

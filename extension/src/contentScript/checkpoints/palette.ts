@@ -193,7 +193,17 @@ class Palette {
     for (const type of ['keydown', 'keyup', 'keypress'] as const) {
       this.host.addEventListener(type, (event) => event.stopPropagation());
     }
-    this.host.addEventListener('keydown', (event) => this.onKeyDown(event));
+    this.host.addEventListener('keydown', (event) => {
+      if (event.isTrusted) this.onKeyDown(event);
+    });
+    // The page can reach into the shadow root; ignore its synthetic clicks.
+    root.addEventListener(
+      'click',
+      (event) => {
+        if (!event.isTrusted) event.stopImmediatePropagation();
+      },
+      true,
+    );
 
     document.documentElement.append(this.host);
     this.input.focus();
@@ -328,6 +338,7 @@ class Palette {
         rename.value = checkpoint.name;
         rename.addEventListener('keydown', (event) => {
           event.stopPropagation();
+          if (!event.isTrusted || event.isComposing) return;
           if (event.key === 'Enter') {
             event.preventDefault();
             void this.rename(checkpoint.id, rename.value);
@@ -377,7 +388,7 @@ class Palette {
   }
 
   private onKeyDown(event: KeyboardEvent) {
-    if (this.renamingId) return;
+    if (this.renamingId || event.isComposing) return;
     const item = this.items[this.active];
     switch (event.key) {
       case 'Escape':

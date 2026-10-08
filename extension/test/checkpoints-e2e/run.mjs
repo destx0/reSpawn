@@ -655,6 +655,58 @@ async function main() {
   );
   await pressNamed(rx.sessionId, 'Escape');
 
+  // Pages can't trigger hotkeys or palette actions with synthetic events.
+  const countBeforeSynthetic = (await bg({ type: 'RESPAWN/LIST' })).checkpoints
+    .length;
+  await evaluate(
+    rx.sessionId,
+    `dispatchEvent(new KeyboardEvent('keydown', { altKey: true, code: 'KeyS', key: 's', bubbles: true })); true`,
+  );
+  await sleep(1000);
+  check(
+    'synthetic Alt+S is ignored',
+    (await bg({ type: 'RESPAWN/LIST' })).checkpoints.length ===
+      countBeforeSynthetic,
+    null,
+  );
+  await key(rx.sessionId, 'KeyP', 'p', 1);
+  await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-palette-host')`,
+    3000,
+  );
+  await evaluate(
+    rx.sessionId,
+    `document.getElementById('respawn-palette-host').shadowRoot.querySelector('.btn.danger').click(); document.getElementById('respawn-palette-host').shadowRoot.querySelector('.btn.danger').click(); true`,
+  );
+  await sleep(500);
+  check(
+    'synthetic palette clicks are ignored',
+    (await bg({ type: 'RESPAWN/LIST' })).checkpoints.length ===
+      countBeforeSynthetic,
+    null,
+  );
+  await pressNamed(rx.sessionId, 'Escape');
+
+  // Closing the DevTools panel must not leave NgRx deaf (stale saves).
+  await send('Target.closeTarget', { targetId: panel.targetId });
+  await sleep(800);
+  await evaluate(ng.sessionId, `ngTest.add('late'); true`);
+  const lateSave = await bg({
+    type: 'RESPAWN/SAVE',
+    tabId: ngTab,
+    name: 'after panel closed',
+  });
+  const lateExport =
+    lateSave.ok &&
+    (await bg({ type: 'RESPAWN/EXPORT', id: lateSave.checkpoint.id }));
+  check(
+    'ngrx: save after closing the panel is fresh',
+    !!lateExport?.ok &&
+      JSON.parse(lateExport.record.state).cart.includes('late'),
+    lateExport?.ok ? JSON.parse(lateExport.record.state) : lateSave,
+  );
+
   // Open & restore: from a tab on another origin, and from a blank tab.
   const other = await openTab('http://127.0.0.1:8701/');
   await waitFor(

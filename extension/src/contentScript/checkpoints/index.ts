@@ -33,6 +33,25 @@ function isHotkey(event: KeyboardEvent, code: 'KeyS' | 'KeyP') {
   );
 }
 
+function isEditable(target: EventTarget | null) {
+  const element = target instanceof Element ? target : null;
+  return (
+    !!element &&
+    (element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement ||
+      (element as HTMLElement).isContentEditable)
+  );
+}
+
+/** macOS Option+S types "ß"; let such characters through in text fields. */
+function typesText(event: KeyboardEvent) {
+  return (
+    isEditable(event.composedPath()[0] ?? event.target) &&
+    event.key.length === 1 &&
+    event.key.toLowerCase() !== event.code.slice(-1).toLowerCase()
+  );
+}
+
 async function save() {
   const response = await requestCheckpoints({ type: 'RESPAWN/SAVE' });
   // Success toasts come from the background so panel actions show them too.
@@ -66,6 +85,8 @@ export function initCheckpoints({ isStoreConnected }: CheckpointsOptions) {
       const saveKey = isHotkey(event, 'KeyS');
       const paletteKey = isHotkey(event, 'KeyP');
       if (!saveKey && !paletteKey) return;
+      // Pages must not be able to trigger saves with synthetic events.
+      if (!event.isTrusted || event.isComposing || typesText(event)) return;
       if (!isStoreConnected() || hasInspectorOverlay()) return;
       event.preventDefault();
       event.stopPropagation();
