@@ -553,31 +553,40 @@ async function main() {
     await evaluate(rx.sessionId, 'window.__respawnClicks'),
   );
 
-  // Palette tool rows drive the overlay.
+  // Palette tool bar drives the overlay.
   await key(rx.sessionId, 'KeyP', 'p', 1);
   await waitFor(
     rx.sessionId,
     `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
     3000,
   );
-  const toolRows = await evaluate(
+  const toolButtons = await evaluate(
     rx.sessionId,
     `(() => {
       const root = document.getElementById('respawn-palette-host')?.shadowRoot;
-      return root ? [...root.querySelectorAll('.row .title')].map((e) => e.textContent) : null;
+      return root ? [...root.querySelectorAll('.toolbar .tool-btn')].map((b) => b.textContent) : null;
     })()`,
   ).catch(() => null);
   check(
-    'inspector: palette lists the tool rows',
-    Array.isArray(toolRows) &&
-      ['Inspect', 'Type', 'Vertical guides', 'Horizontal guides'].every((name) =>
-        toolRows.includes(name),
+    'inspector: palette shows the tool bar',
+    Array.isArray(toolButtons) &&
+      ['Inspect', 'Type', 'Vertical', 'Horizontal'].every((name) =>
+        toolButtons.includes(name),
       ),
-    toolRows,
+    toolButtons,
   );
 
-  await send('Input.insertText', { text: 'vertical' }, rx.sessionId);
-  await pressNamed(rx.sessionId, 'ArrowDown');
+  const focusTool = (tool) =>
+    evaluate(
+      rx.sessionId,
+      `(() => {
+        const button = document.getElementById('respawn-palette-host')?.shadowRoot?.querySelector('[data-tool="${tool}"]');
+        button?.focus();
+        return !!button;
+      })()`,
+    );
+
+  await focusTool('vertical');
   await pressNamed(rx.sessionId, 'Enter');
   await waitFor(
     rx.sessionId,
@@ -602,18 +611,17 @@ async function main() {
   const guideCount = await inspectShadow(
     `(root) => root.querySelectorAll('.guide--vertical:not(.guide--preview)').length`,
   ).catch(() => 0);
-  check('inspector: palette starts guide mode and a click places a guide', guideCount === 1, guideCount);
+  check('inspector: tool bar starts guide mode and a click places a guide', guideCount === 1, guideCount);
   await pressNamed(rx.sessionId, 'Escape');
 
-  // Typography overlay from the palette.
+  // Typography overlay from the tool bar.
   await key(rx.sessionId, 'KeyP', 'p', 1);
   await waitFor(
     rx.sessionId,
     `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
     3000,
   );
-  await send('Input.insertText', { text: 'type' }, rx.sessionId);
-  await pressNamed(rx.sessionId, 'ArrowDown');
+  await focusTool('type');
   await pressNamed(rx.sessionId, 'Enter');
   const chips = await waitFor(
     rx.sessionId,
@@ -630,8 +638,7 @@ async function main() {
     `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
     3000,
   );
-  await send('Input.insertText', { text: 'type' }, rx.sessionId);
-  await pressNamed(rx.sessionId, 'ArrowDown');
+  await focusTool('type');
   await pressNamed(rx.sessionId, 'Enter');
   await pressNamed(rx.sessionId, 'Escape');
 

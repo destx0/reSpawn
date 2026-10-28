@@ -31,52 +31,41 @@ const INDEX_KEY = 'respawn:checkpoints:index';
 type Item =
   | { readonly kind: 'go'; readonly query: string; readonly route: string }
   | { readonly kind: 'save'; readonly name: string }
-  | { readonly kind: 'checkpoint'; readonly checkpoint: CheckpointMeta }
-  | { readonly kind: 'tool'; readonly tool: InspectorTool };
+  | { readonly kind: 'checkpoint'; readonly checkpoint: CheckpointMeta };
 
 type InspectorTool = 'inspect' | 'type' | 'vertical' | 'horizontal';
 
 const INSPECTOR_TOOLS: ReadonlyArray<{
   readonly id: InspectorTool;
   readonly label: string;
+  readonly shortLabel: string;
   readonly hint: string;
-  readonly keywords: string;
 }> = [
   {
     id: 'inspect',
     label: 'Inspect',
+    shortLabel: 'Inspect',
     hint: 'alt I · click an element',
-    keywords: 'inspect select element pointer measure distance',
   },
   {
     id: 'type',
     label: 'Type',
+    shortLabel: 'Type',
     hint: 'typography overlay',
-    keywords: 'type typography text font size colour color',
   },
   {
     id: 'vertical',
     label: 'Vertical guides',
+    shortLabel: 'Vertical',
     hint: 'click to place',
-    keywords: 'vertical guide guides alignment spacing',
   },
   {
     id: 'horizontal',
     label: 'Horizontal guides',
+    shortLabel: 'Horizontal',
     hint: 'click to place',
-    keywords: 'horizontal guide guides alignment spacing',
   },
 ];
-
-const matchesTool = (
-  query: string,
-  tool: (typeof INSPECTOR_TOOLS)[number],
-) => {
-  const terms = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length) return true;
-  const haystack = `${tool.label} ${tool.hint} ${tool.keywords}`.toLocaleLowerCase();
-  return terms.every((term) => haystack.includes(term));
-};
 
 // Feather icons (MIT), inlined so the content script stays dependency-free.
 const svg = (body: string) =>
@@ -180,8 +169,6 @@ input::placeholder { color: var(--faint); }
   height: 42px; padding: 0 10px; border-radius: 8px; cursor: pointer;
 }
 .row.active { background: var(--active); }
-.row.on .title { color: var(--accent); }
-.row.on > svg { color: var(--accent); }
 .row > svg { color: var(--faint); }
 .row.active > svg { color: var(--accent); }
 .main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
@@ -222,6 +209,21 @@ input::placeholder { color: var(--faint); }
   padding: 8px 16px; font-size: 12px; color: var(--danger);
   border-top: 1px solid var(--line);
 }
+.toolbar {
+  display: flex; gap: 4px; padding: 6px;
+  border-top: 1px solid var(--line);
+}
+.tool-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; padding: 0 8px; border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: var(--muted);
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.tool-btn:hover { background: var(--hover); color: var(--fg); }
+.tool-btn.on {
+  background: var(--active); border-color: var(--line); color: var(--accent);
+}
+.tool-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .footer {
   display: flex; gap: 14px; justify-content: flex-end;
   padding: 7px 14px; border-top: 1px solid var(--line);
@@ -250,6 +252,7 @@ class Palette {
   private confirmDeleteId: string | null = null;
   private busy = false;
   private previousFocus: Element | null = null;
+  private readonly toolbarButtons = new Map<InspectorTool, HTMLButtonElement>();
 
   get isOpen() {
     return !!this.host;
@@ -336,7 +339,8 @@ class Palette {
       '<span><kbd>alt A</kbd>all sites</span>' +
       '<span><kbd>esc</kbd>close</span>';
 
-    dialog.append(search, this.list, this.errorBox, footer);
+    const toolbar = this.buildToolbar();
+    dialog.append(search, this.list, this.errorBox, toolbar, footer);
     backdrop.append(dialog);
     root.append(style, backdrop);
 
@@ -429,13 +433,6 @@ class Palette {
     if (!isRouteQuery(trimmed)) {
       items.push({ kind: 'save', name: trimmed });
     }
-    // Tool rows only exist when the inspector could mount (the page may ship
-    // its own `inspector-overlay`, in which case we leave it alone).
-    if (getInspector()) {
-      for (const tool of INSPECTOR_TOOLS) {
-        if (matchesTool(trimmed, tool)) items.push({ kind: 'tool', tool: tool.id });
-      }
-    }
     return items;
   }
 
@@ -454,9 +451,44 @@ class Palette {
     }
   }
 
+  private buildToolbar() {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'toolbar';
+    toolbar.setAttribute('role', 'toolbar');
+    toolbar.setAttribute('aria-label', 'Inspector tools');
+    toolbar.hidden = !getInspector();
+
+    for (const tool of INSPECTOR_TOOLS) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'tool-btn';
+      button.dataset.tool = tool.id;
+      button.title = `${tool.label} — ${tool.hint}`;
+      button.setAttribute('aria-label', tool.label);
+      button.innerHTML = TOOL_ICONS[tool.id];
+      const label = document.createElement('span');
+      label.textContent = tool.shortLabel;
+      button.append(label);
+      button.addEventListener('click', () => this.runTool(tool.id));
+      this.toolbarButtons.set(tool.id, button);
+      toolbar.append(button);
+    }
+
+    return toolbar;
+  }
+
+  private renderToolbar() {
+    for (const [id, button] of this.toolbarButtons) {
+      const active = this.isToolActive(id);
+      button.classList.toggle('on', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+  }
+
   private render() {
     if (!this.host) return;
     this.renderGlobe();
+    this.renderToolbar();
     this.items = this.computeItems();
     if (this.active >= this.items.length) this.active = this.items.length - 1;
     if (this.active < 0) this.active = 0;
@@ -513,18 +545,11 @@ class Palette {
         ? ICONS.arrow
         : item.kind === 'save'
           ? ICONS.plus
-          : item.kind === 'tool'
-            ? TOOL_ICONS[item.tool]
-            : ICONS.bookmark;
+          : ICONS.bookmark;
     row.innerHTML = icon;
     row.append(main);
 
-    if (item.kind === 'tool') {
-      const tool = INSPECTOR_TOOLS.find((entry) => entry.id === item.tool);
-      title.textContent = tool?.label ?? item.tool;
-      sub.textContent = tool?.hint ?? '';
-      if (this.isToolActive(item.tool)) row.classList.add('on');
-    } else if (item.kind === 'go') {
+    if (item.kind === 'go') {
       title.textContent = item.route;
       sub.textContent = 'go, keep state';
     } else if (item.kind === 'save') {
@@ -627,6 +652,9 @@ class Palette {
 
   private onKeyDown(event: KeyboardEvent) {
     if (this.renamingId || event.isComposing) return;
+    // Toolbar buttons handle their own Enter/Space; keep Esc working.
+    const target = event.composedPath()[0] as HTMLElement | null;
+    if (target?.closest?.('.toolbar') && event.key !== 'Escape') return;
     const item = this.items[this.active];
     if (altKey(event, 'KeyA')) {
       event.preventDefault();
@@ -683,10 +711,6 @@ class Palette {
   }
 
   private async run(item: Item, shift: boolean) {
-    if (item.kind === 'tool') {
-      this.runTool(item.tool);
-      return;
-    }
     if (this.busy) return;
     this.busy = true;
     this.setError(null);

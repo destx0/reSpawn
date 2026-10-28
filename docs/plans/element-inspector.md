@@ -269,21 +269,21 @@ The existing `typesText()` guard (`checkpoints/index.ts:47-53`) is needed for
 ### Palette integration
 
 `inspector-ng`'s palette *is* reSpawn's palette. The palette builds its rows from
-the query in `computeItems()` (`palette.ts:351-371`): a `go` row, matching
-checkpoints, then a `save` row. Import already exists as `Alt+I` + hidden file
-input (`palette.ts:544-547`).
+the query in `computeItems()`: a `go` row, matching checkpoints, then a `save`
+row. Import is the upload button in the header.
 
-Recommended integration: append four `tool` rows (Inspect, Type, V, H) to
-`computeItems()`, after the `save` row.
+The inspector tools are a fixed horizontal bar at the bottom of the dialog
+(`.toolbar`), with one button per tool: Inspect, Type, Vertical, Horizontal.
 
-- They inherit the existing ↑/↓/Enter/Esc handling and the active index for
-  free — no port of the Angular command model (±700 lines of index arithmetic
-  in `inspector.component.ts:920-1030`).
-- They are searchable ("type", "guide"), which is better than a fixed footer.
-- `computeItems()` is pure, so the row set is unit-testable.
+- The bar stays out of the checkpoint list, so search results keep their
+  meaning and the list does not grow four rows.
+- Buttons are focusable with `Tab` and activate with `Enter`/`Space`; the
+  palette's key handler steps aside for events that target the bar.
+- The active tool is marked with `.on` and `aria-pressed`.
+- The bar is hidden when the page ships its own `<inspector-overlay>`.
 
-Alternative: a fixed footer strip with 4 buttons; cheaper visually, but then the
-buttons are not reachable by arrow keys and need their own focus model.
+Alternative considered: rows inside `computeItems()` (searchable, but they
+crowd the checkpoint results). The bar won.
 
 ---
 
@@ -319,7 +319,7 @@ buttons are not reachable by arrow keys and need their own focus model.
 - [x] Guide mode: preview, place, drag, snap (10px), hitbox (14px), adjacent
       distance labels, clear.
 - [x] Typography: visible text blocks, chips, viewport clamp, debounced refresh.
-- [x] Palette tool rows: Inspect / Type / Vertical guides / Horizontal guides.
+- [x] Palette tool bar: Inspect / Type / Vertical / Horizontal buttons.
 - [x] Gate: e2e covers distances, guide placement and typography.
 
 ### Phase 4 — settings + persistence — **not done (out of scope)**

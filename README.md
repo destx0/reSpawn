@@ -49,9 +49,9 @@ The extension also carries the measuring tools from `inspector-ng`, with no libr
 | Page   | Hold `Alt`                      | Measure the distance between the pinned element and the one under the pointer, including all four sides when one contains the other                  |
 | Page   | `Ctrl`/`Cmd` + click            | Select the minimum common parent of the pinned element and the one you click                                                                        |
 | Page   | `Esc`                           | Clear the selection and guides, and leave inspect mode                                                                                              |
-| Palette | **Inspect** row (`Alt+P`)       | Same as `Alt+I`                                                                                                                                     |
-| Palette | **Type** row                    | Annotate every visible text block with a colour swatch, font size, line height and hex colour                                                        |
-| Palette | **Vertical / Horizontal guides** | Place alignment guides: move the pointer for a preview, click to place, drag a guide to move it. Guides snap within 10px and show the gap between them |
+| Palette | **Inspect** button (`Alt+P`)    | Same as `Alt+I`                                                                                                                                     |
+| Palette | **Type** button                  | Annotate every visible text block with a colour swatch, font size, line height and hex colour                                                        |
+| Palette | **Vertical / Horizontal** buttons | Place alignment guides: move the pointer for a preview, click to place, drag a guide to move it. Guides snap within 10px and show the gap between them |
 
 Notes:
 
