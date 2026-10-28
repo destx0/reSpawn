@@ -19,6 +19,7 @@ import {
 } from '@redux-devtools/app';
 import { LiftedState } from '@redux-devtools/instrument';
 import { initCheckpoints } from './checkpoints/index.js';
+import { initInspector } from './inspector/index.js';
 
 const source = '@devtools-extension';
 const pageSource = '@devtools-page';
@@ -341,3 +342,4 @@ prefetchOptions();
 window.addEventListener('message', handleMessages, false);
 
 initCheckpoints({ isStoreConnected: () => !!bg });
+initInspector();

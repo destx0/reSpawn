@@ -22,6 +22,7 @@ import {
   translateUrl,
 } from '../../checkpoints/sites.js';
 import { requestCheckpoints } from '../../checkpoints/messages.js';
+import { getInspector } from '../inspector/index.js';
 import { showToast } from './toast.js';
 
 const HOST_ID = 'respawn-palette-host';
@@ -30,7 +31,52 @@ const INDEX_KEY = 'respawn:checkpoints:index';
 type Item =
   | { readonly kind: 'go'; readonly query: string; readonly route: string }
   | { readonly kind: 'save'; readonly name: string }
-  | { readonly kind: 'checkpoint'; readonly checkpoint: CheckpointMeta };
+  | { readonly kind: 'checkpoint'; readonly checkpoint: CheckpointMeta }
+  | { readonly kind: 'tool'; readonly tool: InspectorTool };
+
+type InspectorTool = 'inspect' | 'type' | 'vertical' | 'horizontal';
+
+const INSPECTOR_TOOLS: ReadonlyArray<{
+  readonly id: InspectorTool;
+  readonly label: string;
+  readonly hint: string;
+  readonly keywords: string;
+}> = [
+  {
+    id: 'inspect',
+    label: 'Inspect',
+    hint: 'alt I · click an element',
+    keywords: 'inspect select element pointer measure distance',
+  },
+  {
+    id: 'type',
+    label: 'Type',
+    hint: 'typography overlay',
+    keywords: 'type typography text font size colour color',
+  },
+  {
+    id: 'vertical',
+    label: 'Vertical guides',
+    hint: 'click to place',
+    keywords: 'vertical guide guides alignment spacing',
+  },
+  {
+    id: 'horizontal',
+    label: 'Horizontal guides',
+    hint: 'click to place',
+    keywords: 'horizontal guide guides alignment spacing',
+  },
+];
+
+const matchesTool = (
+  query: string,
+  tool: (typeof INSPECTOR_TOOLS)[number],
+) => {
+  const terms = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return true;
+  const haystack = `${tool.label} ${tool.hint} ${tool.keywords}`.toLocaleLowerCase();
+  return terms.every((term) => haystack.includes(term));
+};
 
 // Feather icons (MIT), inlined so the content script stays dependency-free.
 const svg = (body: string) =>
@@ -54,6 +100,17 @@ const ICONS = {
   download: svg(
     '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
   ),
+  cursor: svg('<path d="m3 3 7.07 17 2.51-7.39L20 10.07z"/>'),
+  type: svg('<path d="M4 7V4h16v3M9 20h6M12 4v16"/>'),
+  vertical: svg('<path d="M12 3v18"/>'),
+  horizontal: svg('<path d="M3 12h18"/>'),
+};
+
+const TOOL_ICONS: Record<InspectorTool, string> = {
+  inspect: ICONS.cursor,
+  type: ICONS.type,
+  vertical: ICONS.vertical,
+  horizontal: ICONS.horizontal,
 };
 
 /** Alt+<letter> palette shortcuts, matched by `code` (macOS Option types symbols). */
@@ -123,6 +180,8 @@ input::placeholder { color: var(--faint); }
   height: 42px; padding: 0 10px; border-radius: 8px; cursor: pointer;
 }
 .row.active { background: var(--active); }
+.row.on .title { color: var(--accent); }
+.row.on > svg { color: var(--accent); }
 .row > svg { color: var(--faint); }
 .row.active > svg { color: var(--accent); }
 .main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
@@ -203,6 +262,8 @@ class Palette {
 
   open() {
     if (this.host) return;
+    // The palette sits above the inspector; stop it from eating palette clicks.
+    getInspector()?.setSuppressed(true);
     this.previousFocus = document.activeElement;
     this.host = document.createElement('div');
     this.host.id = HOST_ID;
@@ -243,7 +304,7 @@ class Palette {
       () => void this.toggleAllSites(),
     );
     this.globeButton.classList.add('tool');
-    const importButton = this.button(ICONS.upload, 'Import JSON (Alt+I)', () =>
+    const importButton = this.button(ICONS.upload, 'Import JSON', () =>
       this.fileInput.click(),
     );
     importButton.classList.add('tool');
@@ -309,6 +370,7 @@ class Palette {
     this.host = null;
     this.renamingId = null;
     this.confirmDeleteId = null;
+    getInspector()?.setSuppressed(false);
     if (this.previousFocus instanceof HTMLElement) this.previousFocus.focus();
   }
 
@@ -367,7 +429,29 @@ class Palette {
     if (!isRouteQuery(trimmed)) {
       items.push({ kind: 'save', name: trimmed });
     }
+    // Tool rows only exist when the inspector could mount (the page may ship
+    // its own `inspector-overlay`, in which case we leave it alone).
+    if (getInspector()) {
+      for (const tool of INSPECTOR_TOOLS) {
+        if (matchesTool(trimmed, tool)) items.push({ kind: 'tool', tool: tool.id });
+      }
+    }
     return items;
+  }
+
+  private isToolActive(tool: InspectorTool) {
+    const state = getInspector()?.state;
+    if (!state) return false;
+    switch (tool) {
+      case 'inspect':
+        return state.mode === 'select';
+      case 'type':
+        return state.typography;
+      case 'vertical':
+        return state.mode === 'guides' && state.orientation === 'vertical';
+      case 'horizontal':
+        return state.mode === 'guides' && state.orientation === 'horizontal';
+    }
   }
 
   private render() {
@@ -424,15 +508,23 @@ class Palette {
     const sub = document.createElement('span');
     sub.className = 'sub';
     main.append(title, sub);
-    row.innerHTML =
+    const icon =
       item.kind === 'go'
         ? ICONS.arrow
         : item.kind === 'save'
           ? ICONS.plus
-          : ICONS.bookmark;
+          : item.kind === 'tool'
+            ? TOOL_ICONS[item.tool]
+            : ICONS.bookmark;
+    row.innerHTML = icon;
     row.append(main);
 
-    if (item.kind === 'go') {
+    if (item.kind === 'tool') {
+      const tool = INSPECTOR_TOOLS.find((entry) => entry.id === item.tool);
+      title.textContent = tool?.label ?? item.tool;
+      sub.textContent = tool?.hint ?? '';
+      if (this.isToolActive(item.tool)) row.classList.add('on');
+    } else if (item.kind === 'go') {
       title.textContent = item.route;
       sub.textContent = 'go, keep state';
     } else if (item.kind === 'save') {
@@ -541,11 +633,6 @@ class Palette {
       void this.toggleAllSites();
       return;
     }
-    if (altKey(event, 'KeyI')) {
-      event.preventDefault();
-      this.fileInput.click();
-      return;
-    }
     if (altKey(event, 'KeyE')) {
       event.preventDefault();
       if (item?.kind === 'checkpoint')
@@ -596,6 +683,10 @@ class Palette {
   }
 
   private async run(item: Item, shift: boolean) {
+    if (item.kind === 'tool') {
+      this.runTool(item.tool);
+      return;
+    }
     if (this.busy) return;
     this.busy = true;
     this.setError(null);
@@ -631,6 +722,26 @@ class Palette {
       else this.setError(response.error);
     } finally {
       this.busy = false;
+    }
+  }
+
+  private runTool(tool: InspectorTool) {
+    const inspector = getInspector();
+    if (!inspector) return;
+    this.close();
+    switch (tool) {
+      case 'inspect':
+        inspector.toggleMode('select');
+        break;
+      case 'type':
+        inspector.toggleTypography();
+        break;
+      case 'vertical':
+        inspector.setOrientation('vertical');
+        break;
+      case 'horizontal':
+        inspector.setOrientation('horizontal');
+        break;
     }
   }
 

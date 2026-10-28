@@ -408,6 +408,232 @@ async function main() {
     paletteRestore,
     await evaluate(rx.sessionId, 'reduxTest.store.getState()'),
   );
+  // Restore resolves before the palette has finished closing; wait for it so the
+  // inspector is no longer suppressed by the palette.
+  await waitFor(
+    rx.sessionId,
+    `!document.getElementById('respawn-palette-host')`,
+    3000,
+  );
+
+  // ---------------------------------------------------------------- Inspector
+  // The host mounts on every page; the overlay only draws while a tool is on.
+  check(
+    'inspector: host mounts with a shadow root',
+    await waitFor(
+      rx.sessionId,
+      `!!document.getElementById('respawn-inspector-host')?.shadowRoot`,
+      3000,
+    ).catch(() => false),
+    null,
+  );
+
+  // Count page clicks to prove inspect mode consumes them.
+  await evaluate(
+    rx.sessionId,
+    `window.__respawnClicks = 0;
+     document.addEventListener('click', () => { window.__respawnClicks += 1; }, true);
+     true`,
+  );
+
+  const rectOf = (id) =>
+    evaluate(
+      rx.sessionId,
+      `(() => {
+        const r = document.getElementById(${JSON.stringify(id)}).getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: r.left, top: r.top, width: r.width, height: r.height };
+      })()`,
+    );
+  const inspectShadow = (expression) =>
+    evaluate(
+      rx.sessionId,
+      `(() => {
+        const root = document.getElementById('respawn-inspector-host')?.shadowRoot;
+        if (!root) return null;
+        return (${expression})(root);
+      })()`,
+    );
+
+  const stateRect = await rectOf('state');
+  await key(rx.sessionId, 'KeyI', 'i', 1 /* Alt */);
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseMoved', x: stateRect.x, y: stateRect.y, button: 'none' },
+    rx.sessionId,
+  );
+  const hoverBox = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const b = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelector('.box--hover');
+      return b ? { left: b.style.left, top: b.style.top, width: b.style.width, height: b.style.height } : null;
+    })()`,
+    3000,
+  ).catch(() => null);
+  check(
+    'inspector: Alt+I highlights the element under the pointer',
+    hoverBox?.left === `${stateRect.left}px` &&
+      hoverBox?.width === `${stateRect.width}px`,
+    hoverBox,
+  );
+
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: stateRect.x, y: stateRect.y, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: stateRect.x, y: stateRect.y, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  const label = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-inspector-host')?.shadowRoot;
+      if (!root?.querySelector('.box--outline')) return null;
+      return root.querySelector('.label')?.textContent ?? '';
+    })()`,
+    3000,
+  ).catch(() => null);
+  check('inspector: click pins the selection', label?.startsWith('pre#state'), label);
+  check(
+    'inspector: inspect mode swallows the page click',
+    (await evaluate(rx.sessionId, 'window.__respawnClicks')) === 0,
+    await evaluate(rx.sessionId, 'window.__respawnClicks'),
+  );
+
+  // Hold Alt over another element to measure the gap.
+  const routeRect = await rectOf('route');
+  await send(
+    'Input.dispatchKeyEvent',
+    { type: 'rawKeyDown', key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18, modifiers: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseMoved', x: routeRect.x, y: routeRect.y, button: 'none' },
+    rx.sessionId,
+  );
+  const distanceTag = await waitFor(
+    rx.sessionId,
+    `document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelector('.distance-tag')?.textContent ?? null`,
+    3000,
+  ).catch(() => null);
+  check('inspector: holding Alt measures the distance', /^\d+$/.test(distanceTag ?? ''), distanceTag);
+  await send(
+    'Input.dispatchKeyEvent',
+    { type: 'keyUp', key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18 },
+    rx.sessionId,
+  );
+
+  await pressNamed(rx.sessionId, 'Escape');
+  check(
+    'inspector: Esc clears the overlay',
+    await waitFor(
+      rx.sessionId,
+      `!document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelector('.box--outline')`,
+      2000,
+    ).catch(() => false),
+    null,
+  );
+
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: stateRect.x, y: stateRect.y, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: stateRect.x, y: stateRect.y, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  check(
+    'inspector: page gets clicks again after Esc',
+    (await evaluate(rx.sessionId, 'window.__respawnClicks')) > 0,
+    await evaluate(rx.sessionId, 'window.__respawnClicks'),
+  );
+
+  // Palette tool rows drive the overlay.
+  await key(rx.sessionId, 'KeyP', 'p', 1);
+  await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
+    3000,
+  );
+  const toolRows = await evaluate(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-palette-host')?.shadowRoot;
+      return root ? [...root.querySelectorAll('.row .title')].map((e) => e.textContent) : null;
+    })()`,
+  ).catch(() => null);
+  check(
+    'inspector: palette lists the tool rows',
+    Array.isArray(toolRows) &&
+      ['Inspect', 'Type', 'Vertical guides', 'Horizontal guides'].every((name) =>
+        toolRows.includes(name),
+      ),
+    toolRows,
+  );
+
+  await send('Input.insertText', { text: 'vertical' }, rx.sessionId);
+  await pressNamed(rx.sessionId, 'ArrowDown');
+  await pressNamed(rx.sessionId, 'Enter');
+  await waitFor(
+    rx.sessionId,
+    `!document.getElementById('respawn-palette-host')`,
+    3000,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseMoved', x: 300, y: 200, button: 'none' },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: 300, y: 200, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: 300, y: 200, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  const guideCount = await inspectShadow(
+    `(root) => root.querySelectorAll('.guide--vertical:not(.guide--preview)').length`,
+  ).catch(() => 0);
+  check('inspector: palette starts guide mode and a click places a guide', guideCount === 1, guideCount);
+  await pressNamed(rx.sessionId, 'Escape');
+
+  // Typography overlay from the palette.
+  await key(rx.sessionId, 'KeyP', 'p', 1);
+  await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
+    3000,
+  );
+  await send('Input.insertText', { text: 'type' }, rx.sessionId);
+  await pressNamed(rx.sessionId, 'ArrowDown');
+  await pressNamed(rx.sessionId, 'Enter');
+  const chips = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const count = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.chip').length ?? 0;
+      return count > 0 ? count : null;
+    })()`,
+    3000,
+  ).catch(() => 0);
+  check('inspector: Type annotates visible text blocks', chips > 0, chips);
+  await key(rx.sessionId, 'KeyP', 'p', 1);
+  await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
+    3000,
+  );
+  await send('Input.insertText', { text: 'type' }, rx.sessionId);
+  await pressNamed(rx.sessionId, 'ArrowDown');
+  await pressNamed(rx.sessionId, 'Enter');
+  await pressNamed(rx.sessionId, 'Escape');
 
   await mappingCheck(ext, bg);
 
@@ -425,6 +651,8 @@ async function main() {
     15000,
   );
   await evaluate(ng.sessionId, `ngTest.add('apple'); ngTest.step(2); true`);
+  // Let the last ACTION reach the background before asking it to save.
+  await sleep(300);
   const ngTab = await tabIdFor('http://127.0.0.1:8702/*');
   const ngSave = await bg({ type: 'RESPAWN/SAVE', tabId: ngTab });
   check(

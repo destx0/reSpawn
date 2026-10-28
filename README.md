@@ -24,7 +24,9 @@ Checkpoints work with any app that connects to Redux DevTools: NgRx (`provideSto
 | Palette                        | `/path`, `./child`, `../sibling` | Navigate inside the app without a reload. Relative paths resolve against the current route, and work inside the hash for `#/` routers                                                                                                                                                                           |
 | Palette                        | `F2` / `Shift+Del`               | Rename / delete the highlighted checkpoint                                                                                                                                                                                                                                                                      |
 | Palette                        | `Alt+A`                          | Show checkpoints from all sites (the globe icon; shared with the panel). Another site's checkpoint restores on the current site at its route                                                                                                                                                                    |
-| Palette                        | `Alt+I` / `Alt+E`                | Import a JSON file / export the highlighted checkpoint                                                                                                                                                                                                                                                          |
+| Palette                        | `Alt+E`                          | Export the highlighted checkpoint                                                                                                                                                                                                                                                                               |
+| Palette                        | Upload icon                      | Import a checkpoint JSON file                                                                                                                                                                                                                                                                                   |
+| Page                           | `Alt+I`                          | Toggle **inspect mode**: hover an element to measure it, click to pin the selection (see [Element inspector](#element-inspector))                                                                                                                                                                                |
 | DevTools → **Checkpoints** tab | Toolbar & row icons              | Save (+), import, and the globe toggle for other sites' checkpoints. The search box also takes a route (`Enter` goes there). Hover a row to restore, go, rename, export or delete; double-click restores. A checkpoint from another site (e.g. localhost vs. staging) restores on the current site at its route |
 
 Notes:
@@ -32,8 +34,32 @@ Notes:
 - Checkpoints are stored in the extension (`chrome.storage.local`), not in the page, so they survive reloads and clearing site data. They are grouped by origin, or by mapping group when a site mapping matches.
 - A restore replaces the store with the saved state, so the DevTools action history starts again from that state.
 - Navigation uses `history.pushState` followed by a `popstate` event. Angular Router, React Router and Vue Router handle that like a browser back/forward.
-- Hotkeys are active only on pages whose top frame has a connected store. They step aside when the `inspector-ng` overlay (`<inspector-overlay>`) is present, since it has its own shortcuts.
+- Checkpoint hotkeys (`Alt+S` / `Alt+P`) are active only on pages whose top frame has a connected store. They step aside when the `inspector-ng` overlay (`<inspector-overlay>`) is present, since it has its own shortcuts.
 - Exports are JSON files with `state` as a plain JSON object, so they can be edited by hand. Importing also accepts `inspector-ng` version 1 checkpoint exports.
+
+### Element inspector
+
+The extension also carries the measuring tools from `inspector-ng`, with no library installed in the app. They live in the page and work on any site.
+
+| Where  | How                             | What happens                                                                                                                                        |
+| ------ | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page   | `Alt+I`                         | Toggle inspect mode. While it is on, clicks select elements instead of reaching the app                                                             |
+| Page   | Hover                           | Highlight the element under the pointer                                                                                                             |
+| Page   | Click                           | Pin the selection: margin, border, padding and content boxes, the element label, its size, font size, line height and colour, and `M`/`P` spacing    |
+| Page   | Hold `Alt`                      | Measure the distance between the pinned element and the one under the pointer, including all four sides when one contains the other                  |
+| Page   | `Ctrl`/`Cmd` + click            | Select the minimum common parent of the pinned element and the one you click                                                                        |
+| Page   | `Esc`                           | Clear the selection and guides, and leave inspect mode                                                                                              |
+| Palette | **Inspect** row (`Alt+P`)       | Same as `Alt+I`                                                                                                                                     |
+| Palette | **Type** row                    | Annotate every visible text block with a colour swatch, font size, line height and hex colour                                                        |
+| Palette | **Vertical / Horizontal guides** | Place alignment guides: move the pointer for a preview, click to place, drag a guide to move it. Guides snap within 10px and show the gap between them |
+
+Notes:
+
+- Inspect mode takes over pointer events like DevTools' own element picker, so pressing a button while inspecting does not activate it. `Esc` or `Alt+I` leaves the mode and the page behaves normally again.
+- The overlay is drawn in a shadow root, so page CSS cannot reach it. Nothing is written to the page's DOM except one host element (`#respawn-inspector-host`).
+- Guides and measurements live in memory for the current page; they are not saved.
+- The inspector works on pages without a store. `Alt+S` / `Alt+P` still require a connected store.
+- Pages that ship the `inspector-ng` Angular overlay (`<inspector-overlay>`) keep their own overlay; the extension's inspector stands down to avoid drawing twice.
 
 ### Site mappings
 
