@@ -26,6 +26,7 @@ const serve = path.join(import.meta.dirname, 'serve.py');
 const servers = [
   spawn('python3', [serve, path.join(FIXTURES, 'redux'), '8701']),
   spawn('python3', [serve, path.join(FIXTURES, 'ng'), '8702']),
+  spawn('python3', [serve, path.join(FIXTURES, 'redux'), '8703']),
 ];
 const browser = spawn(CHROME, [
   '--headless=new',
@@ -408,6 +409,8 @@ async function main() {
     await evaluate(rx.sessionId, 'reduxTest.store.getState()'),
   );
 
+  await mappingCheck(ext, bg);
+
   if (!HAS_NG) {
     console.log('SKIP NgRx checks (fixtures/ng/main.js not built)');
     await finishRedux(ext, rx, bg, rxCheckpoint);
@@ -618,6 +621,30 @@ async function main() {
     Buffer.from(shot.data, 'base64'),
   );
 
+  await evaluate(
+    panel.sessionId,
+    `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Settings')?.click(); true`,
+  );
+  const settingsText = await waitFor(
+    panel.sessionId,
+    `document.body.innerText.includes('Site mappings') && document.body.innerText.includes('Any site /app') ? document.body.innerText : null`,
+    4000,
+  ).catch((e) => e.message);
+  check(
+    'panel: Site mappings settings render',
+    typeof settingsText === 'string',
+    String(settingsText).slice(0, 300),
+  );
+  const settingsShot = await send(
+    'Page.captureScreenshot',
+    { format: 'png' },
+    panel.sessionId,
+  );
+  fs.writeFileSync(
+    path.join(os.tmpdir(), 'respawn-settings.png'),
+    Buffer.from(settingsShot.data, 'base64'),
+  );
+
   // Palette screenshot on the redux page.
   await send('Page.bringToFront', {}, rx.sessionId);
   await send(
@@ -794,6 +821,85 @@ async function main() {
     'delete',
     del.ok && !after.checkpoints.some((c) => c.id === rxCheckpoint.id),
     after,
+  );
+}
+
+// A mapping with a /app prefix on one origin and the root on another.
+async function mappingCheck(ext, bg) {
+  const source = await openTab('http://127.0.0.1:8701/app/cart');
+  await waitFor(
+    source.sessionId,
+    'window.reduxTest && document.readyState === "complete"',
+  );
+  await evaluate(
+    source.sessionId,
+    `reduxTest.store.dispatch({type:'inc'}); reduxTest.store.dispatch({type:'inc'}); reduxTest.store.dispatch({type:'add', item:'apple'}); true`,
+  );
+  const sourceTab = await evaluate(
+    ext.sessionId,
+    `chrome.tabs.query({ url: 'http://127.0.0.1:8701/app/cart' }).then((t) => t[0] && t[0].id)`,
+  );
+  const saved = await bg({
+    type: 'RESPAWN/SAVE',
+    tabId: sourceTab,
+    name: 'mapping source',
+  });
+  check(
+    'mapping: save under /app',
+    saved.ok && saved.checkpoint.route === '/app/cart',
+    saved,
+  );
+  if (!saved.ok) return;
+
+  await evaluate(
+    ext.sessionId,
+    `chrome.storage.sync.set({ 'respawn:siteMappings': ${JSON.stringify([
+      {
+        id: 'mapping-e2e',
+        name: 'Any site /app',
+        environments: [
+          { id: 'mapping-e2e-any', name: 'Any site', baseUrl: '*/app' },
+          { id: 'mapping-e2e-local', name: 'Local', baseUrl: '127.0.0.1:8703' },
+        ],
+      },
+    ])} }).then(() => true)`,
+  );
+
+  const target = await openTab('http://127.0.0.1:8703/');
+  await waitFor(
+    target.sessionId,
+    'window.reduxTest && document.readyState === "complete"',
+  );
+  const targetTab = await evaluate(
+    ext.sessionId,
+    `chrome.tabs.query({ url: 'http://127.0.0.1:8703/' }).then((t) => t[0] && t[0].id)`,
+  );
+  const restored = await bg({
+    type: 'RESPAWN/RESTORE',
+    id: saved.checkpoint.id,
+    tabId: targetTab,
+  });
+  check('mapping: restore responds ok', restored.ok, restored);
+  const restoredState = await waitFor(
+    target.sessionId,
+    `location.pathname === '/cart' && (() => { const s = reduxTest.store.getState(); return s.count === 2 && s.items.join() === 'apple' })()`,
+    6000,
+  ).catch((e) => e.message);
+  const mappingResult = await evaluate(
+    target.sessionId,
+    `({ href: location.href, route: location.pathname, state: reduxTest.store.getState() })`,
+  );
+  check('mapping: /app maps to localhost root', restoredState === true, {
+    restoredState,
+    mappingResult,
+    checkpoint: saved.checkpoint,
+    restored,
+  });
+
+  await bg({ type: 'RESPAWN/DELETE', id: saved.checkpoint.id });
+  await evaluate(
+    ext.sessionId,
+    `chrome.storage.sync.remove('respawn:siteMappings').then(() => true)`,
   );
 }
 

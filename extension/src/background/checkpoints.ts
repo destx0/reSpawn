@@ -21,6 +21,8 @@ import {
   toCheckpointExport,
   toMeta,
 } from '../checkpoints/core.js';
+import { readSiteMappings } from '../checkpoints/siteSettings.js';
+import { translateUrl } from '../checkpoints/sites.js';
 import {
   CheckpointRequest,
   CheckpointResponse,
@@ -555,6 +557,7 @@ async function restore(
   sender: chrome.runtime.MessageSender,
 ): Promise<ResponseMap['RESPAWN/RESTORE']> {
   const record = await readRecord(request.id);
+  const mappings = await readSiteMappings();
   let target = resolveTarget(request, sender);
   let context = await pageContext(target);
   const connected = getTabConnectionIds().includes(target.connectionId);
@@ -566,9 +569,12 @@ async function restore(
     }
     // Stay on this site (e.g. localhost vs. staging); only a page that is not
     // a site (about:blank, chrome://) loads the checkpoint's own URL.
-    const url = /^https?:/.test(context.origin)
-      ? `${context.origin}${record.route}`
-      : record.url;
+    const translated = translateUrl(record.url, context.url, mappings);
+    const url =
+      translated?.url ??
+      (/^https?:/.test(context.origin)
+        ? `${context.origin}${record.route}`
+        : record.url);
     target = await openInTab(target.tabId, url);
     context = await pageContext(target);
   }
@@ -596,8 +602,10 @@ async function restore(
     toast(target, `Restoring “${record.name}”…`, 'info');
     // Apply the state before navigating so guards/resolvers see it.
     await importInto(target, instanceKey, payload);
-    if (context.route !== record.route) {
-      await pageGo(target, record.route);
+    const translated = translateUrl(record.url, context.url, mappings);
+    const route = translated?.route ?? record.route;
+    if (context.route !== route) {
+      await pageGo(target, route);
       await delay(RESTORE_SETTLE_DELAY_MS);
       // Route guards/resolvers may have changed the state while navigating.
       await importInto(target, instanceKey, payload);

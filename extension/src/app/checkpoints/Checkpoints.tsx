@@ -24,6 +24,15 @@ import {
   resolveRouteForUrl,
 } from '../../checkpoints/core.js';
 import {
+  readSiteMappings,
+  SITE_MAPPINGS_KEY,
+} from '../../checkpoints/siteSettings.js';
+import {
+  sameSite,
+  SiteMapping,
+  translateUrl,
+} from '../../checkpoints/sites.js';
+import {
   CheckpointRequest,
   CheckpointResponse,
   CheckpointTarget,
@@ -100,6 +109,7 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
 
   const [checkpoints, setCheckpoints] = useState<CheckpointMeta[]>([]);
   const [context, setContext] = useState<PageContext | null>(null);
+  const [mappings, setMappings] = useState<SiteMapping[]>([]);
   const [instanceName, setInstanceName] = useState<string | undefined>();
   const [query, setQuery] = useState('');
   const [allSites, setAllSites] = useState(false);
@@ -141,15 +151,20 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
     const initial = setTimeout(() => {
       void loadList();
       void readAllSites().then(setAllSites);
+      void readSiteMappings().then(setMappings);
     }, 0);
     const onChanged = (
       changes: { [key: string]: chrome.storage.StorageChange },
       area: string,
     ) => {
-      if (area !== 'local') return;
-      if (changes[INDEX_KEY]) void loadList();
-      if (changes[ALL_SITES_KEY]) {
-        setAllSites(changes[ALL_SITES_KEY].newValue === true);
+      if (area === 'local') {
+        if (changes[INDEX_KEY]) void loadList();
+        if (changes[ALL_SITES_KEY]) {
+          setAllSites(changes[ALL_SITES_KEY].newValue === true);
+        }
+      }
+      if (changes[SITE_MAPPINGS_KEY]) {
+        void readSiteMappings().then(setMappings);
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -199,9 +214,11 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
     const scoped =
       allSites || !context
         ? checkpoints
-        : checkpoints.filter((item) => item.origin === context.origin);
+        : checkpoints.filter((item) =>
+            sameSite(item.url, context.url, mappings),
+          );
     return isRouteQuery(query.trim()) ? [] : fuzzyCheckpoints(scoped, query);
-  }, [allSites, checkpoints, context, query]);
+  }, [allSites, checkpoints, context, mappings, query]);
 
   const routeQuery = isRouteQuery(query.trim());
   const resolvedRoute = useMemo(() => {
@@ -247,7 +264,8 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
   };
 
   const otherSites = context
-    ? checkpoints.filter((item) => item.origin !== context.origin).length
+    ? checkpoints.filter((item) => !sameSite(item.url, context.url, mappings))
+        .length
     : 0;
 
   return (
@@ -346,52 +364,59 @@ export function CheckpointsPanel({ instanceKey, tabId }: PanelProps) {
             )}
           </Empty>
         )}
-        {visible.map((checkpoint) => (
-          <CheckpointRow
-            key={checkpoint.id}
-            checkpoint={checkpoint}
-            showOrigin={allSites}
-            restoreMode={
-              !target || !context ? 'disabled' : hasStore ? 'restore' : 'open'
-            }
-            canGo={!!target}
-            busy={busy}
-            onRestore={() =>
-              void run(
-                // `open` loads the checkpoint route first when there is no store.
-                {
-                  type: 'RESPAWN/RESTORE',
+        {visible.map((checkpoint) => {
+          const translated = context
+            ? translateUrl(checkpoint.url, context.url, mappings)
+            : null;
+          const displayRoute = translated?.route ?? checkpoint.route;
+          return (
+            <CheckpointRow
+              key={checkpoint.id}
+              checkpoint={checkpoint}
+              displayRoute={displayRoute}
+              showOrigin={allSites && !translated}
+              restoreMode={
+                !target || !context ? 'disabled' : hasStore ? 'restore' : 'open'
+              }
+              canGo={!!target}
+              busy={busy}
+              onRestore={() =>
+                void run(
+                  // `open` loads the checkpoint route first when there is no store.
+                  {
+                    type: 'RESPAWN/RESTORE',
+                    id: checkpoint.id,
+                    open: true,
+                    ...target,
+                  },
+                  (r) => (r.ok ? `Restored “${r.checkpoint.name}”` : ''),
+                )
+              }
+              onGo={() =>
+                void run(
+                  {
+                    type: 'RESPAWN/NAVIGATE',
+                    route: displayRoute,
+                    ...target,
+                  },
+                  (r) => (r.ok ? `Went to ${r.route}` : ''),
+                )
+              }
+              onRename={async (name) => {
+                const response = await run({
+                  type: 'RESPAWN/RENAME',
                   id: checkpoint.id,
-                  open: true,
-                  ...target,
-                },
-                (r) => (r.ok ? `Restored “${r.checkpoint.name}”` : ''),
-              )
-            }
-            onGo={() =>
-              void run(
-                {
-                  type: 'RESPAWN/NAVIGATE',
-                  route: checkpoint.route,
-                  ...target,
-                },
-                (r) => (r.ok ? `Went to ${r.route}` : ''),
-              )
-            }
-            onRename={async (name) => {
-              const response = await run({
-                type: 'RESPAWN/RENAME',
-                id: checkpoint.id,
-                name,
-              });
-              return response.ok;
-            }}
-            onExport={() => void exportCheckpoint(checkpoint)}
-            onDelete={() =>
-              void run({ type: 'RESPAWN/DELETE', id: checkpoint.id })
-            }
-          />
-        ))}
+                  name,
+                });
+                return response.ok;
+              }}
+              onExport={() => void exportCheckpoint(checkpoint)}
+              onDelete={() =>
+                void run({ type: 'RESPAWN/DELETE', id: checkpoint.id })
+              }
+            />
+          );
+        })}
       </List>
     </Page>
   );

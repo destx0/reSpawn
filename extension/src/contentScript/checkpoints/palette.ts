@@ -12,6 +12,15 @@ import {
   readCheckpointFile,
   writeAllSites,
 } from '../../checkpoints/files.js';
+import {
+  readSiteMappings,
+  SITE_MAPPINGS_KEY,
+} from '../../checkpoints/siteSettings.js';
+import {
+  sameSite,
+  SiteMapping,
+  translateUrl,
+} from '../../checkpoints/sites.js';
 import { requestCheckpoints } from '../../checkpoints/messages.js';
 import { showToast } from './toast.js';
 
@@ -174,6 +183,7 @@ class Palette {
   private fileInput!: HTMLInputElement;
   private allCheckpoints: CheckpointMeta[] = [];
   private checkpoints: CheckpointMeta[] = [];
+  private mappings: SiteMapping[] = [];
   private allSites = false;
   private items: Item[] = [];
   private active = 0;
@@ -306,15 +316,21 @@ class Palette {
     changes: { [key: string]: chrome.storage.StorageChange },
     area: string,
   ) => {
-    if (area === 'local' && (changes[INDEX_KEY] || changes[ALL_SITES_KEY])) {
+    if (
+      (area === 'local' || area === 'sync') &&
+      (changes[INDEX_KEY] ||
+        changes[ALL_SITES_KEY] ||
+        changes[SITE_MAPPINGS_KEY])
+    ) {
       void this.refresh();
     }
   };
 
   private async refresh() {
-    const [response, allSites] = await Promise.all([
+    const [response, allSites, mappings] = await Promise.all([
       requestCheckpoints({ type: 'RESPAWN/LIST' }),
       readAllSites(),
+      readSiteMappings(),
     ]);
     if (!this.host) return;
     if (!response.ok) {
@@ -322,11 +338,12 @@ class Palette {
       return;
     }
     this.allSites = allSites;
+    this.mappings = mappings;
     this.allCheckpoints = response.checkpoints;
     this.checkpoints = allSites
       ? response.checkpoints
-      : response.checkpoints.filter(
-          (checkpoint) => checkpoint.origin === location.origin,
+      : response.checkpoints.filter((checkpoint) =>
+          sameSite(checkpoint.url, location.href, mappings),
         );
     this.render();
   }
@@ -442,15 +459,18 @@ class Palette {
         });
         main.replaceChildren(rename);
       } else {
+        const translated = translateUrl(
+          checkpoint.url,
+          location.href,
+          this.mappings,
+        );
+        const route = translated?.route ?? checkpoint.route;
         title.textContent = checkpoint.name;
         const host =
-          checkpoint.origin === location.origin
+          translated || checkpoint.origin === location.origin
             ? ''
             : new URL(checkpoint.origin).host;
-        sub.textContent =
-          checkpoint.name === checkpoint.route
-            ? host
-            : `${host}${checkpoint.route}`;
+        sub.textContent = checkpoint.name === route ? host : `${host}${route}`;
       }
       const meta = document.createElement('span');
       meta.className = 'meta';
@@ -495,7 +515,7 @@ class Palette {
 
   private renderGlobe() {
     const others = this.allCheckpoints.filter(
-      (checkpoint) => checkpoint.origin !== location.origin,
+      (checkpoint) => !sameSite(checkpoint.url, location.href, this.mappings),
     ).length;
     const label = this.allSites
       ? 'Showing all sites (Alt+A)'
@@ -592,9 +612,14 @@ class Palette {
           name: item.name || undefined,
         });
       } else if (shift) {
+        const translated = translateUrl(
+          item.checkpoint.url,
+          location.href,
+          this.mappings,
+        );
         response = await requestCheckpoints({
           type: 'RESPAWN/NAVIGATE',
-          route: item.checkpoint.route,
+          route: translated?.route ?? item.checkpoint.route,
         });
       } else {
         response = await requestCheckpoints({

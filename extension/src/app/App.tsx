@@ -10,6 +10,7 @@ import {
 } from '@redux-devtools/app';
 import Actions from './Actions.js';
 import Checkpoints from './checkpoints/Checkpoints.js';
+import SiteMappings from './settings/SiteMappings.js';
 
 type StateProps = ReturnType<typeof mapStateToProps>;
 type DispatchProps = ResolveThunks<typeof actionCreators>;
@@ -40,7 +41,11 @@ class App extends Component<Props> {
     let body;
     switch (section) {
       case 'Settings':
-        body = <Settings />;
+        body = (
+          <Settings
+            extraTabs={[{ name: 'Site mappings', component: SiteMappings }]}
+          />
+        );
         break;
       case 'Checkpoints':
         body = <Checkpoints />;

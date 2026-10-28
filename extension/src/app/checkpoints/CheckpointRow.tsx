@@ -26,6 +26,8 @@ import {
 
 interface Props {
   readonly checkpoint: CheckpointMeta;
+  /** Route translated to the current environment, when a mapping applies. */
+  readonly displayRoute: string;
   readonly showOrigin: boolean;
   /** `open` loads the checkpoint URL in this tab before restoring. */
   readonly restoreMode: 'restore' | 'open' | 'disabled';
@@ -40,6 +42,7 @@ interface Props {
 
 export default function CheckpointRow({
   checkpoint,
+  displayRoute,
   showOrigin,
   restoreMode,
   canGo,
@@ -76,8 +79,8 @@ export default function CheckpointRow({
   const activity = checkpoint.lastUsedAt ?? checkpoint.createdAt;
   const canRestore = restoreMode !== 'disabled' && !busy;
   const location = showOrigin
-    ? `${checkpoint.origin}${checkpoint.route}`
-    : checkpoint.route;
+    ? `${checkpoint.origin}${displayRoute}`
+    : displayRoute;
 
   return (
     <Row

@@ -29,11 +29,25 @@ Checkpoints work with any app that connects to Redux DevTools: NgRx (`provideSto
 
 Notes:
 
-- Checkpoints are stored in the extension (`chrome.storage.local`), not in the page, so they survive reloads and clearing site data. They are grouped by origin.
+- Checkpoints are stored in the extension (`chrome.storage.local`), not in the page, so they survive reloads and clearing site data. They are grouped by origin, or by mapping group when a site mapping matches.
 - A restore replaces the store with the saved state, so the DevTools action history starts again from that state.
 - Navigation uses `history.pushState` followed by a `popstate` event. Angular Router, React Router and Vue Router handle that like a browser back/forward.
 - Hotkeys are active only on pages whose top frame has a connected store. They step aside when the `inspector-ng` overlay (`<inspector-overlay>`) is present, since it has its own shortcuts.
 - Exports are JSON files with `state` as a plain JSON object, so they can be edited by hand. Importing also accepts `inspector-ng` version 1 checkpoint exports.
+
+### Site mappings
+
+DevTools → **Settings** → **Site mappings** connects the same app across environments. A mapping can have any number of named environments:
+
+```text
+Production  https://abc.com/app
+Staging     https://staging.abc.com/app
+Local       http://localhost:4200
+```
+
+A checkpoint saved on any of them is listed on the others and restored at the translated route. `http` and `https` are ignored, so entries can be scheme-less. A base without a port matches any port; an explicit port is exact. `*` is a host wildcard: `*.abc.com/app` matches subdomains and `*/app` matches every site. A path like `/app` is a prefix, so it also matches `/app/orders`.
+
+The suggested settings include `*/app` → `localhost:4200`, for the common case where the public app is under `/app` and the local app is at the root.
 
 ## Documentation
 
