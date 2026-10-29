@@ -4,6 +4,7 @@ import openDevToolsWindow, { DevToolsPosition } from './openWindow.js';
 import { createMenu, removeMenu } from './contextMenus.js';
 import { getOptions } from '../options/syncOptions.js';
 import './checkpoints.js';
+import './screenshot.js';
 
 // Expose the extension's store globally to access it from the windows
 // via chrome.runtime.getBackgroundPage

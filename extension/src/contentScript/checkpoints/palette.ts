@@ -1,6 +1,7 @@
 import {
   CheckpointMeta,
   formatRelativeTime,
+  formatSize,
   fuzzyCheckpoints,
   isRouteQuery,
   resolveRouteForUrl,
@@ -22,6 +23,8 @@ import {
   translateUrl,
 } from '../../checkpoints/sites.js';
 import { requestCheckpoints } from '../../checkpoints/messages.js';
+import { getAnnotations, toggleAnnotations } from '../../annotate/index.js';
+import { captureRegion } from '../../screenshot/index.js';
 import { getInspector } from '../inspector/index.js';
 import { showToast } from './toast.js';
 
@@ -38,35 +41,12 @@ type InspectorTool = 'inspect' | 'typography' | 'vertical' | 'horizontal';
 const INSPECTOR_TOOLS: ReadonlyArray<{
   readonly id: InspectorTool;
   readonly label: string;
-  readonly shortLabel: string;
   readonly hint: string;
-  readonly shortcut?: string;
 }> = [
-  {
-    id: 'inspect',
-    label: 'Inspect',
-    shortLabel: 'Inspect',
-    hint: 'alt I · click an element',
-  },
-  {
-    id: 'typography',
-    label: 'Typography',
-    shortLabel: 'Typography',
-    hint: 'hover text to inspect',
-    shortcut: 'A',
-  },
-  {
-    id: 'vertical',
-    label: 'Vertical guides',
-    shortLabel: 'Vertical',
-    hint: 'click to place',
-  },
-  {
-    id: 'horizontal',
-    label: 'Horizontal guides',
-    shortLabel: 'Horizontal',
-    hint: 'click to place',
-  },
+  { id: 'inspect', label: 'Inspect', hint: 'alt I · click an element' },
+  { id: 'typography', label: 'Typography', hint: 'hover text to inspect' },
+  { id: 'vertical', label: 'Vertical guides', hint: 'click to place' },
+  { id: 'horizontal', label: 'Horizontal guides', hint: 'click to place' },
 ];
 
 // Feather icons (MIT), inlined so the content script stays dependency-free.
@@ -74,34 +54,46 @@ const svg = (body: string) =>
   `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 const ICONS = {
   search: svg('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>'),
-  bookmark: svg('<path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
   plus: svg('<path d="M12 5v14M5 12h14"/>'),
-  arrow: svg('<path d="M5 12h14M12 5l7 7-7 7"/>'),
-  edit: svg('<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>'),
-  trash: svg(
-    '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
-  ),
-  check: svg('<path d="M20 6 9 17l-5-5"/>'),
   globe: svg(
     '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
   ),
   upload: svg(
     '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
   ),
-  download: svg(
-    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  camera: svg(
+    '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  ),
+  annotate: svg(
+    '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   ),
   cursor: svg('<path d="m3 3 7.07 17 2.51-7.39L20 10.07z"/>'),
-  vertical: svg('<path d="M12 3v18"/>'),
-  horizontal: svg('<path d="M3 12h18"/>'),
+  type: svg('<path d="M4 7V4h16v3M9 20h6M12 4v16"/>'),
+  vertical: svg('<path d="M12 4v16M8.5 4h7M8.5 20h7"/>'),
+  horizontal: svg('<path d="M4 12h16M4 8.5v7M20 8.5v7"/>'),
+  dots:
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">' +
+    '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
 };
 
 const TOOL_ICONS: Record<InspectorTool, string> = {
   inspect: ICONS.cursor,
-  typography: '<span class="aa" aria-hidden="true">Aa</span>',
+  typography: ICONS.type,
   vertical: ICONS.vertical,
   horizontal: ICONS.horizontal,
 };
+
+const HINTS = [
+  { keys: '↵', label: 'restore' },
+  { keys: '⇧↵', label: 'go' },
+  { keys: 'alt S', label: 'save' },
+  { keys: 'alt A', label: 'all sites' },
+  { keys: '/', label: 'route' },
+  { keys: 'F2', label: 'rename' },
+  { keys: '⇧⌫', label: 'delete' },
+  { keys: 'alt E', label: 'export' },
+] as const;
+let nextHint = 0;
 
 /** Alt+<letter> palette shortcuts, matched by `code` (macOS Option types symbols). */
 function altKey(event: KeyboardEvent, code: string) {
@@ -114,142 +106,344 @@ function altKey(event: KeyboardEvent, code: string) {
   );
 }
 
+// Dark is the default. A host with data-theme="light" opts into the paper
+// theme; the palette never follows the OS preference.
 const STYLE = `
 :host { all: initial; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 .backdrop {
-  --bg: #ffffff; --fg: #18181b; --muted: #71717a; --faint: #a1a1aa;
-  --line: #e4e4e7; --hover: #f4f4f5; --active: #f4f4f5;
-  --accent: #2563eb; --danger: #dc2626;
+  --pal-bg: #1b1b1b;
+  --pal-bar: #252525;
+  --pal-dock: #141414;
+  --pal-border: rgba(255, 255, 255, 0.14);
+  --pal-border-strong: rgba(255, 255, 255, 0.22);
+  --pal-text: #e8e8e8;
+  --pal-strong: #fafafa;
+  --pal-muted: #b4b4b4;
+  --pal-faint: #8c8c8c;
+  --pal-accent: #f2f2f2;
+  --pal-accent-2: #ffffff;
+  --pal-accent-soft: rgba(255, 255, 255, 0.09);
+  --pal-accent-ring: rgba(255, 255, 255, 0.32);
+  --pal-selected: #2a2a2a;
+  --pal-hover: rgba(255, 255, 255, 0.05);
+  --pal-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.55),
+    0 3px 10px rgba(0, 0, 0, 0.3);
+  --font-ui: 'Source Sans 3', 'Source Sans Pro', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Source Code Pro', ui-monospace, SFMono-Regular, Menlo, monospace;
   position: fixed; inset: 0; z-index: 2147483646;
   display: flex; align-items: flex-start; justify-content: center;
   padding-top: min(16vh, 140px);
-  background: rgb(0 0 0 / 0.2);
-  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
-  color: var(--fg);
+  background: rgb(0 0 0 / 0.38);
+  color: var(--pal-text);
+  color-scheme: dark;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.35;
   animation: fade 120ms ease-out;
 }
-@media (prefers-color-scheme: dark) {
-  .backdrop {
-    --bg: #18181b; --fg: #f4f4f5; --muted: #a1a1aa; --faint: #71717a;
-    --line: #27272a; --hover: #232326; --active: #27272a;
-    --accent: #60a5fa; --danger: #f87171;
-    background: rgb(0 0 0 / 0.45);
-  }
+:host([data-theme='light']) .backdrop {
+  --pal-bg: #f7f7f7;
+  --pal-bar: #efefef;
+  --pal-dock: #e9e9e9;
+  --pal-border: rgba(0, 0, 0, 0.12);
+  --pal-border-strong: rgba(0, 0, 0, 0.2);
+  --pal-text: #3a3a3a;
+  --pal-strong: #111111;
+  --pal-muted: #5f5f5f;
+  --pal-faint: #8a8a8a;
+  --pal-accent: #111111;
+  --pal-accent-2: #000000;
+  --pal-accent-soft: rgba(0, 0, 0, 0.06);
+  --pal-accent-ring: rgba(0, 0, 0, 0.28);
+  --pal-selected: #ececec;
+  --pal-hover: rgba(0, 0, 0, 0.04);
+  --pal-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.18),
+    0 3px 10px rgba(0, 0, 0, 0.08);
+  color-scheme: light;
 }
 @keyframes fade { from { opacity: 0; } }
-@keyframes rise { from { opacity: 0; transform: translateY(-4px) scale(0.99); } }
+@keyframes paletteIn {
+  from { opacity: 0; transform: translateY(-5px) scale(0.995); }
+  to { opacity: 1; transform: none; }
+}
 svg { display: block; flex: none; }
 .dialog {
-  width: min(560px, calc(100vw - 32px));
-  max-height: min(60vh, 480px);
+  width: min(600px, calc(100vw - 32px));
+  max-height: min(60vh, 440px);
   display: flex; flex-direction: column;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 16px 48px rgb(0 0 0 / 0.22), 0 2px 6px rgb(0 0 0 / 0.08);
   overflow: hidden;
-  animation: rise 140ms ease-out;
+  border: 1px solid var(--pal-border);
+  border-radius: 11px;
+  background: var(--pal-bg);
+  color: var(--pal-text);
+  box-shadow:
+    var(--pal-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: paletteIn 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .search {
-  display: flex; align-items: center; gap: 10px;
-  padding: 0 16px; height: 48px; color: var(--faint);
+  display: flex; align-items: center; gap: 7px;
+  flex: none; height: 46px; padding: 0 9px 0 15px;
+  border-bottom: 1px solid var(--pal-border);
+  background: var(--pal-bar);
+  color: var(--pal-faint);
+  transition: box-shadow 120ms ease-out, color 120ms ease-out;
 }
-input {
-  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
-  font: inherit; font-size: 15px; color: var(--fg);
+.search:focus-within {
+  color: var(--pal-accent);
+  box-shadow: inset 0 -1px 0 var(--pal-accent-ring);
 }
-input::placeholder { color: var(--faint); }
+.search > svg { width: 14px; height: 14px; }
+.search input {
+  flex: 1; min-width: 0; padding: 0;
+  border: 0; outline: 0; background: transparent;
+  color: var(--pal-strong);
+  font-family: var(--font-ui);
+  font-size: 13px; font-weight: 450; letter-spacing: 0.005em;
+}
+.search input::placeholder { color: var(--pal-faint); opacity: 0.92; }
+.hint {
+  display: inline-flex; align-items: center; gap: 4px;
+  flex: none; color: var(--pal-faint);
+  font-size: 8.5px; white-space: nowrap; opacity: 0.85;
+  pointer-events: none;
+}
+.hint kbd {
+  padding: 2px 3px;
+  border: 1px solid var(--pal-border);
+  border-radius: 3px;
+  color: var(--pal-muted);
+  font-family: var(--font-mono);
+  font-size: 8px; line-height: 1;
+}
+.icon-btn {
+  position: relative;
+  display: grid; place-items: center;
+  flex: none; width: 28px; height: 28px; padding: 0;
+  border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--pal-faint);
+  cursor: pointer;
+  transition:
+    background 120ms ease-out,
+    color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+.icon-btn svg { width: 15px; height: 15px; }
+.icon-btn:hover { background: var(--pal-hover); color: var(--pal-strong); }
+.icon-btn.on {
+  border-color: var(--pal-accent-ring);
+  background: var(--pal-accent-soft);
+  color: var(--pal-accent);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--pal-accent);
+  outline-offset: 2px;
+}
+.dot {
+  position: absolute; top: 4px; right: 4px;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--pal-accent);
+  box-shadow: 0 0 0 2px var(--pal-bar);
+}
 .list {
-  overflow-y: auto; padding: 4px 6px 6px; margin: 0; list-style: none;
-  border-top: 1px solid var(--line);
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  margin: 0; padding: 5px 4px;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pal-border) transparent;
+}
+.list::-webkit-scrollbar { width: 8px; }
+.list::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--pal-border);
 }
 .list:empty { display: none; }
 .row {
-  display: flex; align-items: center; gap: 12px;
-  height: 42px; padding: 0 10px; border-radius: 8px; cursor: pointer;
+  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  min-height: 40px; margin: 1px; padding: 2px 10px 2px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms ease-out, box-shadow 120ms ease-out;
 }
-.row.active { background: var(--active); }
-.row > svg { color: var(--faint); }
-.row.active > svg { color: var(--accent); }
-.main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.row:hover { background: var(--pal-hover); }
+.row.active {
+  background: var(--pal-selected);
+  box-shadow: inset 0 0 0 1px var(--pal-accent-ring);
+}
+.main { display: flex; flex: 1; flex-direction: column; min-width: 0; }
 .title {
-  flex: none; max-width: 60%;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  overflow: hidden;
+  color: var(--pal-strong);
+  font-size: 12.5px; font-weight: 600; letter-spacing: -0.005em;
+  line-height: 1.35; text-overflow: ellipsis; white-space: nowrap;
+}
+.title.mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px; font-weight: 500; letter-spacing: 0;
 }
 .sub {
-  flex: 1; min-width: 0;
-  color: var(--faint); font-size: 12px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  overflow: hidden;
+  color: var(--pal-faint);
+  font-size: 9.5px; line-height: 1.35;
+  text-overflow: ellipsis; white-space: nowrap;
 }
-.meta { color: var(--faint); font-size: 12px; flex: none; }
-.btn {
-  display: none; place-items: center;
-  width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px;
-  background: transparent; color: var(--muted); cursor: pointer;
+.sub.mono,
+.sub .mono,
+.sub .host { font-family: var(--font-mono); }
+.sub .mono,
+.sub .host { color: var(--pal-muted); }
+.time {
+  flex: none; margin-left: auto;
+  color: var(--pal-faint);
+  font-family: var(--font-mono);
+  font-size: 9px; font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
-.row.active .btn, .btn.confirm, .btn.tool { display: grid; }
-.btn.tool { position: relative; color: var(--faint); }
-.btn.tool.on { color: var(--accent); }
-.badge {
-  position: absolute; top: -2px; right: -4px;
-  min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
-  background: var(--accent); color: var(--bg);
-  font-size: 9.5px; font-weight: 600; line-height: 14px; text-align: center;
+.row-more {
+  display: grid; place-items: center;
+  flex: none; width: 18px; height: 18px; padding: 0;
+  border: 0; border-radius: 4px;
+  background: transparent; color: var(--pal-faint);
+  opacity: 0; cursor: pointer; transform: translateX(2px);
+  transition:
+    opacity 120ms ease-out,
+    transform 120ms ease-out,
+    background 120ms ease-out,
+    color 120ms ease-out;
 }
-.row.active .meta { display: none; }
-.btn:hover { color: var(--fg); background: var(--line); }
-.btn.confirm, .btn.confirm:hover { color: var(--danger); }
+.row-more svg { width: 14px; height: 14px; }
+.row:hover .row-more,
+.row-more:focus-visible { opacity: 1; transform: none; }
+.row-more:hover { background: var(--pal-hover); color: var(--pal-strong); }
+.row-more:focus-visible {
+  outline: 2px solid var(--pal-accent);
+  outline-offset: 1px;
+}
+@media (hover: none) {
+  .row-more { opacity: 1; transform: none; }
+}
 .rename {
-  flex: 1; font-size: 13px; padding: 0;
-  border: 0; border-bottom: 1px solid var(--accent);
+  width: 100%; padding: 0;
+  border: 0; border-bottom: 1px solid var(--pal-accent-ring);
+  outline: 0; background: transparent;
+  color: var(--pal-strong);
+  font-family: var(--font-ui);
+  font-size: 12.5px; font-weight: 600;
 }
-.empty { padding: 20px 14px; color: var(--faint); text-align: center; }
+.empty {
+  padding: 20px 12px;
+  color: var(--pal-faint);
+  font-size: 12px; text-align: center;
+}
 .error {
-  padding: 8px 16px; font-size: 12px; color: var(--danger);
-  border-top: 1px solid var(--line);
+  padding: 8px 14px;
+  border-top: 1px solid var(--pal-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--pal-strong);
+  font-size: 11.5px;
 }
 .toolbar {
-  display: flex; gap: 4px; padding: 6px;
-  border-top: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  flex: none; height: 46px; padding: 0 9px;
+  border-top: 1px solid var(--pal-border);
+  background: var(--pal-dock);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
-.tool-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  height: 32px; padding: 0 8px; border: 1px solid transparent; border-radius: 7px;
-  background: transparent; color: var(--muted);
-  font: inherit; font-size: 12px; cursor: pointer;
+.tools { display: flex; gap: 4px; }
+.divider {
+  width: 1px; height: 18px; margin: 0 2px;
+  background: var(--pal-border);
 }
-.tool-btn span {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.dock-btn {
+  display: grid; place-items: center;
+  width: 30px; height: 28px; padding: 0;
+  border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--pal-faint);
+  cursor: pointer;
+  transition:
+    background 120ms ease-out,
+    color 120ms ease-out,
+    border-color 120ms ease-out;
 }
-.tool-btn .aa {
-  flex: none; overflow: visible; font-size: 12px; font-weight: 600;
-  letter-spacing: -0.03em; line-height: 1;
+.dock-btn svg { width: 15px; height: 15px; }
+.dock-btn:hover { background: var(--pal-hover); color: var(--pal-strong); }
+.dock-btn.on {
+  border-color: var(--pal-accent-ring);
+  background: var(--pal-accent-soft);
+  color: var(--pal-accent);
 }
-.tool-btn:hover { background: var(--hover); color: var(--fg); }
-.tool-btn.on {
-  background: var(--active); border-color: var(--line); color: var(--accent);
+.dock-btn.save {
+  background: var(--pal-accent);
+  color: var(--pal-bg);
 }
-.tool-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.footer {
-  display: flex; gap: 14px; justify-content: flex-end;
-  padding: 7px 14px; border-top: 1px solid var(--line);
-  color: var(--faint); font-size: 11px;
+.dock-btn.save:hover {
+  background: var(--pal-accent-2);
+  color: var(--pal-bg);
 }
-kbd {
-  font: inherit; font-size: 10.5px; padding: 0 4px; margin-right: 3px;
-  border-radius: 4px; border: 1px solid var(--line);
+.dock-btn:focus-visible {
+  outline: 2px solid var(--pal-accent);
+  outline-offset: 2px;
+}
+.menu {
+  position: fixed; z-index: 3;
+  min-width: 150px; padding: 4px;
+  border: 1px solid var(--pal-border-strong);
+  border-radius: 8px;
+  background: var(--pal-bar);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-ui);
+}
+.menu-item {
+  display: flex; align-items: center;
+  width: 100%; height: 28px; padding: 0 8px;
+  border: 0; border-radius: 5px;
+  background: transparent; color: var(--pal-text);
+  font-family: var(--font-ui);
+  font-size: 12px; text-align: left;
+  cursor: pointer;
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--pal-hover);
+  color: var(--pal-strong);
+  outline: none;
+}
+.menu-item.danger { color: var(--pal-strong); font-weight: 600; }
+.menu-sep {
+  display: block; height: 1px; margin: 4px 2px;
+  background: var(--pal-border);
+}
+@media (max-width: 620px) {
+  .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .backdrop, .dialog { animation: none; }
+  .search, .row, .row-more, .icon-btn, .dock-btn, .menu-item {
+    transition: none;
+  }
 }
 `;
 
 class Palette {
   private host: HTMLElement | null = null;
+  private backdrop!: HTMLDivElement;
   private input!: HTMLInputElement;
+  private hint!: HTMLSpanElement;
   private list!: HTMLUListElement;
   private errorBox!: HTMLDivElement;
   private globeButton!: HTMLButtonElement;
   private fileInput!: HTMLInputElement;
+  private annotateButton: HTMLButtonElement | null = null;
+  private menu: HTMLDivElement | null = null;
+  private menuAnchor: HTMLButtonElement | null = null;
+  private menuPointerHandler: ((event: PointerEvent) => void) | null = null;
+  private menuResizeHandler: (() => void) | null = null;
   private allCheckpoints: CheckpointMeta[] = [];
   private checkpoints: CheckpointMeta[] = [];
   private mappings: SiteMapping[] = [];
@@ -275,6 +469,7 @@ class Palette {
     if (this.host) return;
     // The palette sits above the inspector; stop it from eating palette clicks.
     getInspector()?.setSuppressed(true);
+    getAnnotations().setSuppressed(true);
     this.previousFocus = document.activeElement;
     this.host = document.createElement('div');
     this.host.id = HOST_ID;
@@ -284,6 +479,7 @@ class Palette {
 
     const backdrop = document.createElement('div');
     backdrop.className = 'backdrop';
+    this.backdrop = backdrop;
     backdrop.addEventListener('mousedown', (event) => {
       if (event.target === backdrop) this.close();
     });
@@ -297,7 +493,7 @@ class Palette {
     search.className = 'search';
     search.innerHTML = ICONS.search;
     this.input = document.createElement('input');
-    this.input.placeholder = 'Search checkpoints or go to /route';
+    this.input.placeholder = 'Search checkpoints or /route';
     this.input.setAttribute('role', 'combobox');
     this.input.setAttribute('aria-controls', 'respawn-list');
     this.input.setAttribute('aria-expanded', 'true');
@@ -309,26 +505,17 @@ class Palette {
       this.setError(null);
       this.render();
     });
-    this.globeButton = this.button(
+    this.hint = document.createElement('span');
+    this.hint.className = 'hint';
+    this.hint.setAttribute('aria-hidden', 'true');
+    this.globeButton = this.iconButton(
       ICONS.globe,
-      '',
+      'Show all sites (Alt+A)',
+      'icon-btn tool globe',
       () => void this.toggleAllSites(),
     );
-    this.globeButton.classList.add('tool');
-    const importButton = this.button(ICONS.upload, 'Import JSON', () =>
-      this.fileInput.click(),
-    );
-    importButton.classList.add('tool');
-    this.fileInput = document.createElement('input');
-    this.fileInput.type = 'file';
-    this.fileInput.accept = 'application/json,.json';
-    this.fileInput.hidden = true;
-    this.fileInput.addEventListener('change', () => {
-      const file = this.fileInput.files?.[0];
-      this.fileInput.value = '';
-      if (file) void this.importFile(file);
-    });
-    search.append(this.input, this.globeButton, importButton, this.fileInput);
+    this.globeButton.setAttribute('aria-pressed', 'false');
+    search.append(this.input, this.hint, this.globeButton);
 
     this.errorBox = document.createElement('div');
     this.errorBox.className = 'error';
@@ -338,17 +525,22 @@ class Palette {
     this.list.className = 'list';
     this.list.id = 'respawn-list';
     this.list.setAttribute('role', 'listbox');
+    this.list.addEventListener('scroll', () => this.closeMenu(), {
+      passive: true,
+    });
 
-    const footer = document.createElement('div');
-    footer.className = 'footer';
-    footer.innerHTML =
-      '<span><kbd>↵</kbd>restore</span>' +
-      '<span><kbd>⇧↵</kbd>go</span>' +
-      '<span><kbd>alt A</kbd>all sites</span>' +
-      '<span><kbd>esc</kbd>close</span>';
+    this.fileInput = document.createElement('input');
+    this.fileInput.type = 'file';
+    this.fileInput.accept = 'application/json,.json';
+    this.fileInput.hidden = true;
+    this.fileInput.addEventListener('change', () => {
+      const file = this.fileInput.files?.[0];
+      this.fileInput.value = '';
+      if (file) void this.importFile(file);
+    });
 
     const toolbar = this.buildToolbar();
-    dialog.append(search, this.list, this.errorBox, toolbar, footer);
+    dialog.append(search, this.list, this.errorBox, toolbar);
     backdrop.append(dialog);
     root.append(style, backdrop);
 
@@ -369,6 +561,7 @@ class Palette {
     );
 
     document.documentElement.append(this.host);
+    this.showHint();
     this.input.focus();
     this.render();
     void this.refresh();
@@ -377,13 +570,20 @@ class Palette {
 
   close() {
     if (!this.host) return;
+    this.closeMenu();
     chrome.storage.onChanged.removeListener(this.onStorageChanged);
     this.host.remove();
     this.host = null;
     this.renamingId = null;
     this.confirmDeleteId = null;
-    getInspector()?.setSuppressed(false);
+    getAnnotations().setSuppressed(false);
+    getInspector()?.setSuppressed(getAnnotations().isActive);
     if (this.previousFocus instanceof HTMLElement) this.previousFocus.focus();
+  }
+
+  private showHint() {
+    const hint = HINTS[nextHint++ % HINTS.length];
+    this.hint.innerHTML = `<kbd>${hint.keys}</kbd><span>${hint.label}</span>`;
   }
 
   private onStorageChanged = (
@@ -396,11 +596,13 @@ class Palette {
         changes[ALL_SITES_KEY] ||
         changes[SITE_MAPPINGS_KEY])
     ) {
+      this.closeMenu();
       void this.refresh();
     }
   };
 
   private async refresh() {
+    this.closeMenu();
     const [response, allSites, mappings] = await Promise.all([
       requestCheckpoints({ type: 'RESPAWN/LIST' }),
       readAllSites(),
@@ -423,8 +625,7 @@ class Palette {
   }
 
   private computeItems(): Item[] {
-    const query = this.input.value;
-    const trimmed = query.trim();
+    const trimmed = this.input.value.trim();
     const items: Item[] = [];
     if (isRouteQuery(trimmed)) {
       let route: string | null = null;
@@ -438,7 +639,9 @@ class Palette {
     for (const checkpoint of fuzzyCheckpoints(this.checkpoints, trimmed)) {
       items.push({ kind: 'checkpoint', checkpoint });
     }
-    if (!isRouteQuery(trimmed)) {
+    // Saving with a custom name only matters while typing one; the filled plus
+    // in the toolbar saves with the automatic name.
+    if (trimmed && !isRouteQuery(trimmed)) {
       items.push({ kind: 'save', name: trimmed });
     }
     return items;
@@ -463,28 +666,78 @@ class Palette {
     const toolbar = document.createElement('div');
     toolbar.className = 'toolbar';
     toolbar.setAttribute('role', 'toolbar');
-    toolbar.setAttribute('aria-label', 'Inspector tools');
-    toolbar.hidden = !getInspector();
+    toolbar.setAttribute('aria-label', 'Palette actions');
 
+    const save = this.iconButton(
+      ICONS.plus,
+      'Save current state (Alt+S)',
+      'dock-btn save',
+      () => void this.run({ kind: 'save', name: '' }, false),
+    );
+    const divider = document.createElement('span');
+    divider.className = 'divider';
+
+    const hasInspector = !!getInspector();
+    const tools = document.createElement('div');
+    tools.className = 'tools';
+    tools.hidden = !hasInspector;
     for (const tool of INSPECTOR_TOOLS) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'tool-btn';
+      button.className = 'dock-btn tool-btn';
       button.dataset.tool = tool.id;
-      const name = tool.shortcut
-        ? `${tool.label} (${tool.shortcut})`
-        : tool.label;
-      button.title = `${name} — ${tool.hint}`;
-      button.setAttribute('aria-label', name);
+      button.title = `${tool.label} — ${tool.hint}`;
+      button.setAttribute('aria-label', tool.label);
       button.innerHTML = TOOL_ICONS[tool.id];
-      const label = document.createElement('span');
-      label.textContent = tool.shortLabel;
-      button.append(label);
       button.addEventListener('click', () => this.runTool(tool.id));
       this.toolbarButtons.set(tool.id, button);
-      toolbar.append(button);
+      tools.append(button);
     }
 
+    const toolsDivider = document.createElement('span');
+    toolsDivider.className = 'divider';
+    toolsDivider.hidden = !hasInspector;
+
+    const camera = this.iconButton(
+      ICONS.camera,
+      'Screenshot',
+      'dock-btn',
+      () => {
+        this.close();
+        void captureRegion();
+      },
+    );
+    this.annotateButton = this.iconButton(
+      ICONS.annotate,
+      'Annotate',
+      'dock-btn annotate',
+      () => {
+        this.close();
+        toggleAnnotations();
+      },
+    );
+    this.annotateButton.setAttribute('aria-pressed', 'false');
+
+    const actionDivider = document.createElement('span');
+    actionDivider.className = 'divider';
+    const importButton = this.iconButton(
+      ICONS.upload,
+      'Import JSON',
+      'dock-btn',
+      () => this.fileInput.click(),
+    );
+
+    toolbar.append(
+      save,
+      divider,
+      tools,
+      toolsDivider,
+      camera,
+      this.annotateButton,
+      actionDivider,
+      importButton,
+      this.fileInput,
+    );
     return toolbar;
   }
 
@@ -498,26 +751,38 @@ class Palette {
 
   private render() {
     if (!this.host) return;
+    this.hint.hidden = this.input.value.length > 0;
     this.renderGlobe();
     this.renderToolbar();
+    const annotationsActive = getAnnotations().isActive;
+    this.annotateButton?.classList.toggle('on', annotationsActive);
+    this.annotateButton?.setAttribute(
+      'aria-pressed',
+      String(annotationsActive),
+    );
     this.items = this.computeItems();
     if (this.active >= this.items.length) this.active = this.items.length - 1;
     if (this.active < 0) this.active = 0;
 
     const rows = this.items.map((item, index) => this.renderRow(item, index));
-    if (!this.checkpoints.length && !this.input.value.trim()) {
+    if (!rows.length) {
       const empty = document.createElement('li');
       empty.className = 'empty';
-      empty.textContent = this.allCheckpoints.length
-        ? 'No checkpoints for this site · Alt+A shows all'
-        : 'No checkpoints yet';
-      rows.unshift(empty);
+      empty.setAttribute('role', 'presentation');
+      empty.textContent = this.input.value.trim()
+        ? 'No matches'
+        : this.allCheckpoints.length
+          ? 'No checkpoints for this site · Alt+A shows all'
+          : 'No checkpoints yet';
+      rows.push(empty);
     }
     this.list.replaceChildren(...rows);
     const activeRow = this.list.querySelector('.row.active');
     activeRow?.scrollIntoView({ block: 'nearest' });
     if (activeRow) {
       this.input.setAttribute('aria-activedescendant', activeRow.id);
+    } else {
+      this.input.removeAttribute('aria-activedescendant');
     }
     const renameInput = this.list.querySelector<HTMLInputElement>('.rename');
     if (renameInput && this.host.shadowRoot!.activeElement !== renameInput) {
@@ -532,40 +797,36 @@ class Palette {
     row.id = `respawn-item-${index}`;
     row.setAttribute('role', 'option');
     row.setAttribute('aria-selected', String(index === this.active));
-    row.addEventListener('mousemove', () => {
+    row.addEventListener('mouseenter', () => {
+      if (this.menu) return;
       if (this.active !== index) {
         this.active = index;
         this.render();
       }
     });
     row.addEventListener('click', (event) => {
-      if ((event.target as HTMLElement).closest('.btn, .rename')) return;
+      if ((event.target as HTMLElement).closest('.row-more, .rename')) return;
       this.active = index;
       void this.run(item, event.shiftKey);
     });
 
     const main = document.createElement('div');
     main.className = 'main';
-    const title = document.createElement('span');
+    const title = document.createElement('div');
     title.className = 'title';
-    const sub = document.createElement('span');
+    const sub = document.createElement('div');
     sub.className = 'sub';
     main.append(title, sub);
-    const icon =
-      item.kind === 'go'
-        ? ICONS.arrow
-        : item.kind === 'save'
-          ? ICONS.plus
-          : ICONS.bookmark;
-    row.innerHTML = icon;
     row.append(main);
 
     if (item.kind === 'go') {
       title.textContent = item.route;
+      title.classList.add('mono');
       sub.textContent = 'go, keep state';
     } else if (item.kind === 'save') {
       title.textContent = item.name ? `Save “${item.name}”` : 'Save checkpoint';
       sub.textContent = `${location.pathname}${location.search}${location.hash}`;
+      sub.classList.add('mono');
     } else {
       const { checkpoint } = item;
       if (this.renamingId === checkpoint.id) {
@@ -586,51 +847,56 @@ class Palette {
           }
         });
         main.replaceChildren(rename);
-      } else {
-        const translated = translateUrl(
-          checkpoint.url,
-          location.href,
-          this.mappings,
-        );
-        const route = translated?.route ?? checkpoint.route;
-        title.textContent = checkpoint.name;
-        const host =
-          translated || checkpoint.origin === location.origin
-            ? ''
-            : new URL(checkpoint.origin).host;
-        sub.textContent = checkpoint.name === route ? host : `${host}${route}`;
+        row.dataset.id = checkpoint.id;
+        return row;
       }
-      const meta = document.createElement('span');
-      meta.className = 'meta';
-      meta.textContent = formatRelativeTime(
+
+      const translated = translateUrl(
+        checkpoint.url,
+        location.href,
+        this.mappings,
+      );
+      const route = translated?.route ?? checkpoint.route;
+      title.textContent = checkpoint.name;
+      if (checkpoint.name === route) title.classList.add('mono');
+      const host = new URL(checkpoint.origin).host;
+      const crossSite = !translated && checkpoint.origin !== location.origin;
+      if (crossSite) {
+        const hostEl = document.createElement('span');
+        hostEl.className = 'host';
+        hostEl.textContent = host;
+        const routeEl = document.createElement('span');
+        routeEl.className = 'mono';
+        routeEl.textContent = ` ${route}`;
+        sub.append(hostEl, routeEl);
+      } else if (checkpoint.name === route) {
+        sub.textContent = formatSize(checkpoint.size);
+      } else {
+        sub.textContent = route;
+        sub.classList.add('mono');
+      }
+
+      const time = document.createElement('span');
+      time.className = 'time';
+      time.textContent = formatRelativeTime(
         checkpoint.lastUsedAt ?? checkpoint.createdAt,
       );
-      const exportButton = this.button(
-        ICONS.download,
-        'Export JSON (Alt+E)',
-        () => void this.exportCheckpoint(checkpoint),
-      );
-      const renameButton = this.button(ICONS.edit, 'Rename (F2)', () => {
-        this.renamingId = checkpoint.id;
-        this.render();
-      });
-      const confirming = this.confirmDeleteId === checkpoint.id;
-      const deleteButton = this.button(
-        confirming ? ICONS.check : ICONS.trash,
-        confirming ? 'Click again to delete' : 'Delete (Shift+Del)',
-        () => void this.requestDelete(checkpoint.id),
-      );
-      deleteButton.classList.add('delete');
-      if (confirming) deleteButton.classList.add('confirm');
-      row.append(meta, exportButton, renameButton, deleteButton);
+      const more = this.rowMoreButton(checkpoint.id);
+      row.dataset.id = checkpoint.id;
+      row.append(time, more);
     }
     return row;
   }
 
-  private button(icon: string, label: string, onClick: () => void) {
+  private iconButton(
+    icon: string,
+    label: string,
+    className: string,
+    onClick: () => void,
+  ) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'btn';
+    button.className = className;
     button.title = label;
     button.setAttribute('aria-label', label);
     button.innerHTML = icon;
@@ -638,6 +904,18 @@ class Palette {
       event.stopPropagation();
       onClick();
     });
+    return button;
+  }
+
+  private rowMoreButton(id: string) {
+    const button = this.iconButton(
+      ICONS.dots,
+      'More actions',
+      'row-more',
+      () => this.openMenuForId(id),
+    );
+    button.setAttribute('aria-haspopup', 'menu');
+    button.setAttribute('aria-expanded', 'false');
     return button;
   }
 
@@ -654,18 +932,180 @@ class Palette {
     this.globeButton.classList.toggle('on', this.allSites);
     this.globeButton.innerHTML = ICONS.globe;
     if (!this.allSites && others > 0) {
-      const badge = document.createElement('span');
-      badge.className = 'badge';
-      badge.textContent = String(others);
-      this.globeButton.append(badge);
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      this.globeButton.append(dot);
+    }
+  }
+
+  private openMenuForId(id: string, focusLast = false) {
+    const checkpoint =
+      this.checkpoints.find((item) => item.id === id) ??
+      this.allCheckpoints.find((item) => item.id === id);
+    if (!checkpoint) return;
+    const anchor = this.list.querySelector<HTMLButtonElement>(
+      `.row[data-id="${CSS.escape(id)}"] .row-more`,
+    );
+    if (anchor) this.openMenu(checkpoint, anchor, focusLast);
+  }
+
+  private openMenu(
+    checkpoint: CheckpointMeta,
+    anchor: HTMLButtonElement,
+    focusLast: boolean,
+  ) {
+    this.closeMenu();
+    const menu = document.createElement('div');
+    menu.className = 'menu';
+    menu.setAttribute('role', 'menu');
+
+    const confirming = this.confirmDeleteId === checkpoint.id;
+    const addItem = (label: string, action: () => void, className = '') => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `menu-item ${className}`.trim();
+      button.setAttribute('role', 'menuitem');
+      button.textContent = label;
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        action();
+      });
+      menu.append(button);
+    };
+
+    addItem('Export JSON', () => {
+      this.closeMenu(false);
+      void this.exportCheckpoint(checkpoint);
+    });
+    addItem('Rename', () => {
+      this.closeMenu(false);
+      this.renamingId = checkpoint.id;
+      this.render();
+    });
+    const separator = document.createElement('span');
+    separator.className = 'menu-sep';
+    menu.append(separator);
+    addItem(
+      confirming ? 'Confirm delete' : 'Delete',
+      () => {
+        if (!confirming) {
+          this.confirmDeleteId = checkpoint.id;
+          this.closeMenu(false);
+          this.render();
+          this.openMenuForId(checkpoint.id, true);
+          return;
+        }
+        this.closeMenu(false);
+        void this.requestDelete(checkpoint.id);
+      },
+      'danger',
+    );
+
+    this.menu = menu;
+    this.menuAnchor = anchor;
+    anchor.setAttribute('aria-expanded', 'true');
+    this.backdrop.append(menu);
+    this.positionMenu(menu, anchor);
+
+    this.menuPointerHandler = (event: PointerEvent) => {
+      const path = event.composedPath();
+      if (!path.includes(menu) && !path.includes(anchor)) this.closeMenu();
+    };
+    this.backdrop.addEventListener(
+      'pointerdown',
+      this.menuPointerHandler,
+      true,
+    );
+    this.menuResizeHandler = () => this.closeMenu();
+    window.addEventListener('resize', this.menuResizeHandler);
+    menu.addEventListener('keydown', this.onMenuKeyDown);
+
+    const items = Array.from(
+      menu.querySelectorAll<HTMLButtonElement>('.menu-item'),
+    );
+    const target = focusLast ? items[items.length - 1] : items[0];
+    target?.focus();
+  }
+
+  private positionMenu(menu: HTMLElement, anchor: HTMLElement) {
+    const rect = anchor.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const gap = 4;
+    let top = rect.bottom + gap;
+    if (top + menuRect.height > window.innerHeight - 8) {
+      top = rect.top - menuRect.height - gap;
+    }
+    const right = Math.max(8, window.innerWidth - rect.right);
+    menu.style.top = `${Math.max(8, top)}px`;
+    menu.style.right = `${right}px`;
+  }
+
+  private onMenuKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeMenu(true);
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      const items = this.menu
+        ? Array.from(this.menu.querySelectorAll<HTMLButtonElement>('.menu-item'))
+        : [];
+      if (!items.length) return;
+      const active = this.host?.shadowRoot?.activeElement as
+        | HTMLButtonElement
+        | null;
+      const index = active ? items.indexOf(active) : -1;
+      const next =
+        event.key === 'ArrowDown'
+          ? (index + 1) % items.length
+          : (index - 1 + items.length) % items.length;
+      items[next].focus();
+      return;
+    }
+    if (event.key === 'Tab') this.closeMenu(false);
+  };
+
+  private closeMenu(restoreFocus = false) {
+    const menu = this.menu;
+    const anchor = this.menuAnchor;
+    if (menu) {
+      menu.removeEventListener('keydown', this.onMenuKeyDown);
+      menu.remove();
+    }
+    if (this.menuPointerHandler) {
+      this.backdrop.removeEventListener(
+        'pointerdown',
+        this.menuPointerHandler,
+        true,
+      );
+      this.menuPointerHandler = null;
+    }
+    if (this.menuResizeHandler) {
+      window.removeEventListener('resize', this.menuResizeHandler);
+      this.menuResizeHandler = null;
+    }
+    this.menu = null;
+    this.menuAnchor = null;
+    if (anchor) {
+      anchor.setAttribute('aria-expanded', 'false');
+      if (restoreFocus && anchor.isConnected) anchor.focus();
     }
   }
 
   private onKeyDown(event: KeyboardEvent) {
     if (this.renamingId || event.isComposing) return;
-    // Toolbar buttons handle their own Enter/Space; keep Esc working.
     const target = event.composedPath()[0] as HTMLElement | null;
-    if (target?.closest?.('.toolbar') && event.key !== 'Escape') return;
+    if (target?.closest?.('.menu')) return;
+    // Buttons handle their own Enter/Space; keep Escape working.
+    if (target?.closest?.('button') && event.key !== 'Escape') return;
+    if (this.menu && event.key === 'Escape') {
+      event.preventDefault();
+      this.closeMenu(true);
+      return;
+    }
     const item = this.items[this.active];
     if (altKey(event, 'KeyA')) {
       event.preventDefault();
@@ -714,7 +1154,9 @@ class Palette {
       case 'Delete':
         if (item?.kind === 'checkpoint' && event.shiftKey) {
           event.preventDefault();
-          void this.requestDelete(item.checkpoint.id);
+          this.confirmDeleteId = item.checkpoint.id;
+          this.render();
+          this.openMenuForId(item.checkpoint.id, true);
         }
         return;
     }
@@ -844,6 +1286,7 @@ class Palette {
       return;
     }
     this.confirmDeleteId = null;
+    this.closeMenu();
     const response = await requestCheckpoints({ type: 'RESPAWN/DELETE', id });
     if (!response.ok) this.setError(response.error);
     this.input.focus();

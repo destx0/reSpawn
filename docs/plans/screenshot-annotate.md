@@ -4,7 +4,10 @@
 > page-side tool launched from **Alt+C** or the **Alt+P palette camera menu**.
 > No changes to the DevTools panel.
 >
-> Status: **planned** (2026-10-29). Nothing is implemented yet.
+> Status: **first pass implemented** (2026-10-29). The shipped UX differs from
+> the original plan in §1–§8; see §12 for what actually landed.
+>
+> Nothing in the DevTools panel was touched.
 
 ---
 
@@ -493,3 +496,84 @@ fixture, and assert:
 
 *Written 2026-10-29 against Measurer at `/home/omu/cud/mesurer` and reSpawn
 `main` at `065f439`. No code written yet.*
+
+---
+
+## 12. Implementation notes (2026-10-29)
+
+Status: **first pass shipped**.
+
+### Surface
+
+The palette footer now carries two entry buttons, not the annotation tools:
+
+```
+[ + ] | inspect  type  V-guides  H-guides | [ camera ] [ annotate ] | [ import ]
+```
+
+- **Screenshot** (`camera`) closes the palette, opens the region overlay, captures
+  the viewport and opens the editor.
+- **Annotate** (`pencil`) closes the palette and opens the floating annotation
+  bar on the live page.
+
+The annotation bar itself is a draggable floating dark bar at the bottom right,
+with select, rectangle, arrow, pen, text, ink colour, stroke width, undo, redo,
+clear and close. The screenshot editor reuses the same bar with copy and
+download added.
+
+### Modules shipped
+
+```
+extension/src/annotate/
+  types.ts, geometry.ts, store.ts, render.ts
+  surface.ts    canvas pointer/draft/text editing
+  toolbar.ts    draggable floating bar
+  overlay.ts    page overlay (bottom-right bar, scroll redraw, shortcuts)
+  styles.ts, index.ts
+extension/src/screenshot/
+  messages.ts, capture.ts, editor.ts, index.ts
+extension/src/background/screenshot.ts
+```
+
+Palette wiring lives in `src/contentScript/checkpoints/palette.ts`; the
+background handler is imported from `src/background/index.ts`.
+
+### Behaviour
+
+- Page annotations are stored in document coordinates, so they scroll with the
+  page. They survive closing the bar until the page reloads; clear is undoable.
+- The bar's shortcuts: `V` select, `R` rectangle, `A` arrow, `P` pen, `T` text,
+  `Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, `Delete`, `Esc`.
+- Before a page capture the selection outline is cleared and the bar is hidden,
+  so neither is baked into the image. Annotation shapes themselves stay visible
+  and are captured.
+- The screenshot editor fits the capture to the viewport (never upscales),
+  keeps annotations in image pixels, and exports at native resolution.
+- Copy uses `navigator.clipboard.write`; when unavailable it downloads the PNG
+  and reports that in a toast.
+
+### Permission change
+
+`captureVisibleTab` rejected the previous `http/https/file` host patterns with
+`Either the '<all_urls>' or 'activeTab' permission is required.` All three
+manifests (`chrome/`, `edge/`, `firefox/`) now use `"host_permissions":
+["<all_urls>"]`. The store warning text is unchanged because the extension
+already requested every http/https/file page.
+
+### Verification
+
+- `pnpm --filter respawn-extension type-check`
+- `pnpm --filter respawn-extension lint` (0 errors)
+- `pnpm --filter respawn-extension build:extension`
+- `node test/checkpoints-e2e/run.mjs` — **90/90**, including palette buttons,
+  the floating bar, all four tools, region capture and editor open/close.
+
+### Not shipped / deviations
+
+- Full-page tiling, inspector prefill, global `Alt+C`, persistence and video are
+  not implemented.
+- The bar defaults to the bottom right to avoid the centre-bottom toast; it can
+  be dragged anywhere.
+- The page annotation layer is modal while the bar is open (the canvas consumes
+  page clicks); closing the bar restores page interaction and leaves the shapes
+  on screen.

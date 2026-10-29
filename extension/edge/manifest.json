@@ -76,9 +76,7 @@
     "unlimitedStorage"
   ],
   "host_permissions": [
-    "file:///*",
-    "http://*/*",
-    "https://*/*"
+    "<all_urls>"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src * 'unsafe-inline'; img-src 'self' data:;"

@@ -318,15 +318,27 @@ async function main() {
   check('palette: Alt+P opens', opened, null);
   const rows = await waitFor(
     rx.sessionId,
-    `(() => { const r = document.getElementById('respawn-palette-host').shadowRoot.querySelectorAll('.row .title'); return r.length > 1 ? [...r].map(e => e.textContent) : null })()`,
+    `(() => { const r = document.getElementById('respawn-palette-host').shadowRoot.querySelectorAll('.row .title'); return r.length > 0 ? [...r].map(e => e.textContent) : null })()`,
     3000,
   ).catch((e) => e.message);
   check(
-    'palette: lists the checkpoint + save',
-    Array.isArray(rows) &&
-      rows.includes('/cart') &&
-      rows.some((t) => t.startsWith('Save')),
+    'palette: lists the checkpoint',
+    Array.isArray(rows) && rows.includes('/cart'),
     rows,
+  );
+  const paletteHint = await evaluate(
+    rx.sessionId,
+    `document.getElementById('respawn-palette-host')?.shadowRoot.querySelector('.hint kbd')?.textContent ?? null`,
+  ).catch(() => null);
+  check('palette: rotating hint is shown', !!paletteHint, paletteHint);
+  const paletteSave = await evaluate(
+    rx.sessionId,
+    `!!document.getElementById('respawn-palette-host')?.shadowRoot.querySelector('.toolbar .dock-btn.save')`,
+  ).catch(() => false);
+  check(
+    'palette: save action lives in the toolbar',
+    paletteSave === true,
+    paletteSave,
   );
   await send('Input.insertText', { text: './x' }, rx.sessionId);
   const goRow = await waitFor(
@@ -414,6 +426,304 @@ async function main() {
     rx.sessionId,
     `!document.getElementById('respawn-palette-host')`,
     3000,
+  );
+
+  // ------------------------------------------------------ Screenshot + annotate
+  await key(rx.sessionId, 'KeyP', 'p', 1);
+  await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
+    3000,
+  );
+  const paletteActions = await evaluate(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-palette-host').shadowRoot;
+      return {
+        camera: !!root.querySelector('[aria-label="Screenshot"]'),
+        annotate: !!root.querySelector('[aria-label="Annotate"]'),
+      };
+    })()`,
+  );
+  check(
+    'palette: screenshot button in the footer',
+    paletteActions?.camera === true,
+    paletteActions,
+  );
+  check(
+    'palette: annotate button in the footer',
+    paletteActions?.annotate === true,
+    paletteActions,
+  );
+
+  await evaluate(
+    rx.sessionId,
+    `document.getElementById('respawn-palette-host').shadowRoot.querySelector('[aria-label="Annotate"]')?.focus(); true`,
+  );
+  await pressNamed(rx.sessionId, 'Enter');
+  const annotateOpen = await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-annotate-host')?.shadowRoot?.querySelector('.annotate-toolbar:not([hidden])')`,
+    3000,
+  ).catch(() => false);
+  check(
+    'annotate: floating toolbar opens',
+    annotateOpen === true,
+    annotateOpen,
+  );
+
+  await key(rx.sessionId, 'KeyR', 'r', 0);
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseMoved', x: 320, y: 200, button: 'none' },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: 320, y: 200, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    {
+      type: 'mouseMoved',
+      x: 520,
+      y: 340,
+      button: 'left',
+      buttons: 1,
+    },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: 520, y: 340, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  const annotateUndo = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-annotate-host')?.shadowRoot;
+      const undo = root?.querySelector('[aria-label="Undo (Cmd/Ctrl+Z)"]');
+      return !!undo && undo.disabled === false;
+    })()`,
+    3000,
+  ).catch(() => false);
+  check(
+    'annotate: rectangle creates an undoable shape',
+    annotateUndo === true,
+    annotateUndo,
+  );
+  const canvasPainted = await evaluate(
+    rx.sessionId,
+    `(() => {
+      const canvas = document.getElementById('respawn-annotate-host')?.shadowRoot?.querySelector('canvas');
+      if (!canvas) return false;
+      const data = canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height).data;
+      if (!data) return false;
+      for (let index = 3; index < data.length; index += 4) {
+        if (data[index] !== 0) return true;
+      }
+      return false;
+    })()`,
+  ).catch(() => false);
+  check(
+    'annotate: canvas contains the shape',
+    canvasPainted === true,
+    canvasPainted,
+  );
+
+  await key(rx.sessionId, 'KeyA', 'a', 0);
+  const arrowActive = await evaluate(
+    rx.sessionId,
+    `document.getElementById('respawn-annotate-host')?.shadowRoot?.querySelector('[data-tool="arrow"]')?.getAttribute('aria-pressed')`,
+  );
+  check('annotate: arrow tool activates', arrowActive === 'true', arrowActive);
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: 620, y: 220, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    {
+      type: 'mouseMoved',
+      x: 800,
+      y: 320,
+      button: 'left',
+      buttons: 1,
+    },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: 800, y: 320, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+
+  await key(rx.sessionId, 'KeyP', 'p', 0);
+  const penActive = await evaluate(
+    rx.sessionId,
+    `document.getElementById('respawn-annotate-host')?.shadowRoot?.querySelector('[data-tool="pen"]')?.getAttribute('aria-pressed')`,
+  );
+  check('annotate: pen tool activates', penActive === 'true', penActive);
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: 300, y: 430, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    {
+      type: 'mouseMoved',
+      x: 360,
+      y: 460,
+      button: 'left',
+      buttons: 1,
+    },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    {
+      type: 'mouseMoved',
+      x: 420,
+      y: 430,
+      button: 'left',
+      buttons: 1,
+    },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: 420, y: 430, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+
+  await key(rx.sessionId, 'KeyT', 't', 0);
+  const textActive = await evaluate(
+    rx.sessionId,
+    `document.getElementById('respawn-annotate-host')?.shadowRoot?.querySelector('[data-tool="text"]')?.getAttribute('aria-pressed')`,
+  );
+  check('annotate: text tool activates', textActive === 'true', textActive);
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: 500, y: 430, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: 500, y: 430, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send('Input.insertText', { text: 'Hello' }, rx.sessionId);
+  await pressNamed(rx.sessionId, 'Enter');
+  const annotateAfterAll = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-annotate-host')?.shadowRoot;
+      const undo = root?.querySelector('[aria-label="Undo (Cmd/Ctrl+Z)"]');
+      return !!undo && undo.disabled === false;
+    })()`,
+    3000,
+  ).catch(() => false);
+  check(
+    'annotate: arrow, pen and text all commit',
+    annotateAfterAll === true,
+    annotateAfterAll,
+  );
+
+  await pressNamed(rx.sessionId, 'Escape');
+  const annotateClosed = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const bar = document.getElementById('respawn-annotate-host')?.shadowRoot?.querySelector('.annotate-toolbar');
+      return !bar || bar.hidden;
+    })()`,
+    3000,
+  ).catch(() => false);
+  check(
+    'annotate: Escape closes the floating bar',
+    annotateClosed === true,
+    annotateClosed,
+  );
+
+  await key(rx.sessionId, 'KeyP', 'p', 1);
+  await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
+    3000,
+  );
+  await evaluate(
+    rx.sessionId,
+    `document.getElementById('respawn-palette-host').shadowRoot.querySelector('[aria-label="Screenshot"]')?.focus(); true`,
+  );
+  await pressNamed(rx.sessionId, 'Enter');
+  const regionOpen = await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-screenshot-region-host')?.shadowRoot`,
+    3000,
+  ).catch(() => false);
+  check(
+    'screenshot: region overlay opens',
+    regionOpen === true,
+    regionOpen,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseMoved', x: 200, y: 180, button: 'none' },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: 200, y: 180, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    {
+      type: 'mouseMoved',
+      x: 700,
+      y: 480,
+      button: 'left',
+      buttons: 1,
+    },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: 700, y: 480, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  const capturedShot = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const image = document.getElementById('respawn-screenshot-host')?.shadowRoot?.querySelector('img.shot-image');
+      return image && image.src.startsWith('blob:') && image.naturalWidth > 0
+        ? { width: image.naturalWidth, height: image.naturalHeight }
+        : null;
+    })()`,
+    8000,
+  ).catch((error) => error.message);
+  check(
+    'screenshot: editor opens with a captured image',
+    !!capturedShot &&
+      typeof capturedShot === 'object' &&
+      capturedShot.width > 0,
+    capturedShot,
+  );
+  await pressNamed(rx.sessionId, 'Escape');
+  await waitFor(
+    rx.sessionId,
+    `!document.getElementById('respawn-screenshot-host')`,
+    3000,
+  ).catch(() => false);
+  check(
+    'screenshot: Escape closes the editor',
+    await evaluate(
+      rx.sessionId,
+      `!document.getElementById('respawn-screenshot-host')`,
+    ),
+    null,
   );
 
   // ---------------------------------------------------------------- Inspector
@@ -564,14 +874,14 @@ async function main() {
     rx.sessionId,
     `(() => {
       const root = document.getElementById('respawn-palette-host')?.shadowRoot;
-      return root ? [...root.querySelectorAll('.toolbar .tool-btn')].map((b) => b.querySelector('span:not(.aa)')?.textContent ?? b.textContent) : null;
+      return root ? [...root.querySelectorAll('.toolbar .tool-btn')].map((b) => b.getAttribute('aria-label')) : null;
     })()`,
   ).catch(() => null);
   check(
     'inspector: palette shows the tool bar',
     Array.isArray(toolButtons) &&
-      ['Inspect', 'Typography', 'Vertical', 'Horizontal'].every((name) =>
-        toolButtons.includes(name),
+      ['Inspect', 'Typography', 'Vertical guides', 'Horizontal guides'].every(
+        (name) => toolButtons.includes(name),
       ),
     toolButtons,
   );
@@ -1271,7 +1581,7 @@ async function main() {
   );
   await evaluate(
     rx.sessionId,
-    `document.getElementById('respawn-palette-host').shadowRoot.querySelector('.btn.delete').click(); document.getElementById('respawn-palette-host').shadowRoot.querySelector('.btn.delete').click(); true`,
+    `(() => { const root = document.getElementById('respawn-palette-host').shadowRoot; root.querySelector('.row .row-more')?.click(); return true })()`,
   );
   await sleep(500);
   check(
@@ -1314,12 +1624,12 @@ async function main() {
   const shadow = `document.getElementById('respawn-palette-host')?.shadowRoot`;
   await send('Page.bringToFront', {}, other.sessionId);
   await key(other.sessionId, 'KeyP', 'p', 1);
-  const badge = await waitFor(
+  const dot = await waitFor(
     other.sessionId,
-    `${shadow}?.querySelector('.tool .badge')?.textContent`,
+    `!!${shadow}?.querySelector('.tool .dot')`,
     3000,
   ).catch((e) => e.message);
-  check('palette: globe badge counts other sites', Number(badge) > 0, badge);
+  check('palette: globe dot marks other sites', dot === true, dot);
   await key(other.sessionId, 'KeyA', 'a', 1);
   const foreign = await waitFor(
     other.sessionId,
