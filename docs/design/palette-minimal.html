@@ -1,0 +1,1815 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>reSpawn · minimal palette</title>
+    <style>
+      :root {
+        --lab-accent: #f5b942;
+        --lab-accent-soft: rgba(245, 185, 66, 0.12);
+        --lab-danger: #ef6b73;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+      }
+
+      body {
+        font-family:
+          ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      svg {
+        display: block;
+        flex: none;
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-variant-ligatures: none;
+      }
+
+      /* ---------- Lab chrome ---------- */
+
+      .lab {
+        width: 100%;
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 2px 4px 10px 0;
+      }
+
+      .toolbar-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 150px;
+      }
+
+      .kicker {
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .toolbar-sub {
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 11px;
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .segment {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 2px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 7px;
+        background: var(--secondary, rgba(127, 127, 127, 0.08));
+      }
+
+      .segment button {
+        padding: 5px 7px;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+        line-height: 1;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .segment button:hover {
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .segment button.on {
+        background: var(--background, #0f1115);
+        color: var(--foreground, #e8ebf1);
+        box-shadow: 0 0 0 1px var(--border, #313846);
+      }
+
+      .tool-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 8px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .tool-btn svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      .tool-btn:hover {
+        border-color: var(--muted-foreground, #8b94a3);
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .tool-btn.on {
+        border-color: var(--lab-accent);
+        background: var(--lab-accent);
+        color: #1b1609;
+      }
+
+      .tool-btn.primary {
+        border-color: transparent;
+        background: var(--primary, #7cc4e8);
+        color: var(--primary-foreground, #08131f);
+      }
+
+      .count {
+        display: inline-grid;
+        place-items: center;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 7px;
+        background: currentColor;
+        color: var(--background, #0f1115);
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .tool-btn.on .count {
+        background: rgba(0, 0, 0, 0.22);
+        color: inherit;
+      }
+
+      .lab-hint {
+        margin: 0 0 16px;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .lab-hint strong {
+        color: var(--foreground, #e8ebf1);
+        font-weight: 600;
+      }
+
+      .gallery {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 22px;
+      }
+
+      .card {
+        min-width: 0;
+      }
+
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 0 2px 8px;
+      }
+
+      .letter {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 22px;
+        height: 22px;
+        margin-top: 1px;
+        border-radius: 6px;
+        background: var(--lab-accent-soft);
+        color: var(--lab-accent);
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .card-title {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .card-title h2 {
+        margin: 0;
+        font-size: 12.5px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        line-height: 1.25;
+      }
+
+      .card-title p {
+        margin: 2px 0 0;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+        line-height: 1.4;
+      }
+
+      .card-tools {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        flex: none;
+      }
+
+      .mini {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        cursor: pointer;
+      }
+
+      .mini svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .mini:hover {
+        background: var(--secondary, rgba(127, 127, 127, 0.1));
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .mini.star.on {
+        color: var(--lab-accent);
+      }
+
+      .mini.star.on svg {
+        fill: currentColor;
+      }
+
+      .stage {
+        position: relative;
+        height: 350px;
+        overflow: hidden;
+        border: 1px solid var(--border, #313846);
+        border-radius: 14px;
+        background: #eef1f5;
+        transition:
+          border-color 120ms,
+          box-shadow 120ms;
+      }
+
+      .card:hover .stage {
+        border-color: color-mix(
+          in srgb,
+          var(--border, #313846) 55%,
+          var(--foreground, #e8ebf1)
+        );
+      }
+
+      .card.is-picked .stage {
+        border-color: var(--lab-accent);
+        box-shadow:
+          0 0 0 1px var(--lab-accent),
+          0 12px 34px rgba(0, 0, 0, 0.18);
+      }
+
+      .page-slot,
+      .scrim {
+        position: absolute;
+        inset: 0;
+      }
+
+      .scrim {
+        background: rgba(8, 11, 16, 0.52);
+        backdrop-filter: blur(1.2px);
+      }
+
+      .lab-foot {
+        margin-top: 22px;
+        padding: 12px 0 4px;
+        border-top: 1px solid var(--border, #313846);
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 9.5px;
+        line-height: 1.5;
+      }
+
+      .lab-foot strong {
+        color: var(--foreground, #e8ebf1);
+        font-weight: 600;
+      }
+
+      /* ---------- Minimal page mock ---------- */
+
+      .page {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background: #f4f6f9;
+        pointer-events: none;
+      }
+
+      .pnav {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 14px;
+        border-bottom: 1px solid #e5e9ef;
+        background: #ffffff;
+      }
+
+      .pbrand {
+        color: #94a3b8;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 8px;
+        letter-spacing: 0.02em;
+      }
+
+      .pnav-lines {
+        display: flex;
+        gap: 10px;
+        margin-left: auto;
+      }
+
+      .pnav-lines i {
+        display: block;
+        width: 24px;
+        height: 4px;
+        border-radius: 2px;
+        background: #e5e9ef;
+      }
+
+      .pnav-pill {
+        width: 42px;
+        height: 14px;
+        margin-left: 18px;
+        border-radius: 7px;
+        background: #eef2f6;
+      }
+
+      .pbody {
+        display: grid;
+        grid-template-columns: 86px 1fr;
+        gap: 22px;
+        padding: 18px 22px;
+      }
+
+      .pside {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+
+      .pside i {
+        display: block;
+        width: 100%;
+        height: 5px;
+        border-radius: 3px;
+        background: #e2e7ee;
+      }
+
+      .pside i:nth-child(2) {
+        width: 72%;
+      }
+
+      .pside i:nth-child(4) {
+        width: 84%;
+      }
+
+      .pmain {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .pline {
+        height: 6px;
+        border-radius: 3px;
+        background: #e2e7ee;
+      }
+
+      .pline.w30 {
+        width: 30%;
+      }
+
+      .pline.w55 {
+        width: 55%;
+      }
+
+      .pline.w42 {
+        width: 42%;
+      }
+
+      .pgrid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .pcard {
+        height: 96px;
+        border: 1px solid #e5e9ef;
+        border-radius: 7px;
+        background: #ffffff;
+      }
+
+      .pcard::before {
+        display: block;
+        width: 42%;
+        height: 5px;
+        margin: 12px;
+        border-radius: 3px;
+        background: #eef2f6;
+        content: "";
+      }
+
+      /* ---------- Palette ---------- */
+
+      .palette {
+        --pal-bg: #15181e;
+        --pal-surface: #1d222b;
+        --pal-border: #2b3340;
+        --pal-text: #e7ebf2;
+        --pal-strong: #f7f9fc;
+        --pal-muted: #98a2b3;
+        --pal-faint: #6e798a;
+        --pal-accent: #7cc4e8;
+        --pal-accent-2: #a3dcf5;
+        --pal-accent-soft: rgba(124, 196, 232, 0.11);
+        --pal-hover: rgba(255, 255, 255, 0.045);
+        --pal-shadow:
+          0 22px 64px rgba(0, 0, 0, 0.48), 0 2px 8px rgba(0, 0, 0, 0.28);
+
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        width: min(560px, calc(100% - 28px));
+        max-height: 326px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.085);
+        border-radius: 10px;
+        background: var(--pal-bg);
+        color: var(--pal-text);
+        box-shadow: var(--pal-shadow);
+        font: 12px/1.35 ui-sans-serif, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        transform: translateX(-50%);
+        container-type: inline-size;
+      }
+
+      body[data-palette-theme="light"] .palette {
+        --pal-bg: #ffffff;
+        --pal-surface: #f4f6f8;
+        --pal-border: #e3e8ee;
+        --pal-text: #28303b;
+        --pal-strong: #111827;
+        --pal-muted: #5b6472;
+        --pal-faint: #8a94a3;
+        --pal-accent: #0b6bcb;
+        --pal-accent-2: #0857a6;
+        --pal-accent-soft: rgba(11, 107, 203, 0.07);
+        --pal-hover: rgba(0, 0, 0, 0.035);
+        --pal-shadow:
+          0 22px 64px rgba(15, 23, 42, 0.24),
+          0 2px 8px rgba(15, 23, 42, 0.1);
+
+        border-color: rgba(0, 0, 0, 0.08);
+      }
+
+      .pico {
+        width: 14px;
+        height: 14px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      .pbar {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex: none;
+        height: 44px;
+        padding: 0 8px 0 13px;
+        border-bottom: 1px solid var(--pal-border);
+        color: var(--pal-faint);
+      }
+
+      .pbar:focus-within {
+        color: var(--pal-accent);
+      }
+
+      .pbar input {
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--pal-text);
+        font-size: 12.5px;
+      }
+
+      .pbar input::placeholder {
+        color: var(--pal-faint);
+      }
+
+      .psep {
+        flex: none;
+        width: 1px;
+        height: 16px;
+        margin: 0 1px;
+        background: var(--pal-border);
+      }
+
+      .piconbtn {
+        position: relative;
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 27px;
+        height: 27px;
+        padding: 0;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--pal-faint);
+        cursor: pointer;
+      }
+
+      .piconbtn .pico {
+        width: 14px;
+        height: 14px;
+      }
+
+      .piconbtn:hover {
+        background: var(--pal-hover);
+        color: var(--pal-strong);
+      }
+
+      .piconbtn.on {
+        background: var(--pal-accent-soft);
+        color: var(--pal-accent);
+      }
+
+      .sdot {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--pal-accent);
+      }
+
+      .piconbtn.on .sdot {
+        display: none;
+      }
+
+      .plist {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 4px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--pal-border) transparent;
+      }
+
+      .prow {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 2px 8px 2px 9px;
+        border-radius: 5px;
+        cursor: default;
+      }
+
+      .prow:hover {
+        background: var(--pal-hover);
+      }
+
+      .prow.on {
+        background: var(--pal-accent-soft);
+        box-shadow: inset 2px 0 0 var(--pal-accent);
+      }
+
+      .prow-slot {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 16px;
+        height: 16px;
+        color: var(--pal-faint);
+      }
+
+      .prow.add .prow-slot,
+      .prow.add .prow-title {
+        color: var(--pal-accent);
+      }
+
+      .prow-main {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 0;
+        min-width: 0;
+      }
+
+      .prow-title {
+        overflow: hidden;
+        color: var(--pal-strong);
+        font-size: 11.5px;
+        font-weight: 550;
+        line-height: 1.35;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .prow-title.mono {
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .prow.add .prow-title {
+        font-weight: 600;
+      }
+
+      .prow-sub {
+        overflow: hidden;
+        color: var(--pal-faint);
+        font-size: 9px;
+        line-height: 1.35;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .prow-sub .mono {
+        color: var(--pal-muted);
+      }
+
+      .prow-sub .host {
+        color: var(--pal-amber);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .ptime {
+        flex: none;
+        margin-left: auto;
+        color: var(--pal-faint);
+        font-size: 8.5px;
+      }
+
+      .pmore {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 18px;
+        height: 18px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--pal-faint);
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .prow:hover .pmore {
+        opacity: 1;
+      }
+
+      .pmore:hover {
+        background: var(--pal-hover);
+        color: var(--pal-strong);
+      }
+
+      [data-other] {
+        display: none !important;
+      }
+
+      .show-all .prow[data-other] {
+        display: flex !important;
+      }
+
+      /* ---------- Tool strip, two placements ---------- */
+
+      .tools-inline {
+        display: flex;
+        align-items: center;
+        gap: 1px;
+      }
+
+      .tools-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        flex: none;
+        height: 34px;
+        border-top: 1px solid var(--pal-border);
+      }
+
+      body[data-placement="bottom"] .tools-inline {
+        display: none;
+      }
+
+      body[data-placement="top"] .tools-bottom {
+        display: none;
+      }
+
+      .tool-ico {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 27px;
+        padding: 0;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--pal-faint);
+        cursor: pointer;
+      }
+
+      .tool-ico .pico {
+        width: 14px;
+        height: 14px;
+      }
+
+      .tool-ico:hover {
+        background: var(--pal-hover);
+        color: var(--pal-strong);
+      }
+
+      .tool-ico.on {
+        background: var(--pal-accent-soft);
+        color: var(--pal-accent);
+      }
+
+      .pins {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        pointer-events: none;
+      }
+
+      .pin {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        width: 17px;
+        height: 17px;
+        margin: -8.5px 0 0 -8.5px;
+        border: 2px solid var(--pal-bg);
+        border-radius: 50%;
+        background: var(--lab-accent);
+        color: #1d1708;
+        font-size: 9px;
+        font-weight: 800;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      /* ---------- Annotation ---------- */
+
+      body.annotate .gallery .palette [data-part]:hover,
+      body.annotate .gallery .palette [data-part]:focus {
+        outline: 1px dashed var(--lab-accent);
+        outline-offset: -2px;
+        cursor: crosshair;
+      }
+
+      body.annotate .gallery .palette {
+        cursor: crosshair;
+      }
+
+      .note-pop {
+        position: fixed;
+        z-index: 120;
+        width: 292px;
+        max-width: calc(100vw - 20px);
+        padding: 10px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 11px;
+        background: var(--popover, #171b23);
+        color: var(--popover-foreground, #e8ebf1);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+      }
+
+      .np-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+      }
+
+      .np-head b {
+        color: var(--foreground, #e8ebf1);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 9.5px;
+        font-weight: 600;
+      }
+
+      .np-variant {
+        display: inline-grid;
+        place-items: center;
+        width: 18px;
+        height: 16px;
+        border-radius: 4px;
+        background: var(--lab-accent-soft);
+        color: var(--lab-accent);
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .np-close {
+        display: grid;
+        place-items: center;
+        width: 20px;
+        height: 20px;
+        margin-left: auto;
+        padding: 0;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        cursor: pointer;
+      }
+
+      .np-close:hover {
+        background: var(--secondary, rgba(127, 127, 127, 0.12));
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .note-pop textarea {
+        display: block;
+        width: 100%;
+        height: 68px;
+        padding: 7px 8px;
+        resize: vertical;
+        border: 1px solid var(--input, #313846);
+        border-radius: 7px;
+        outline: 0;
+        background: var(--background, #0f1115);
+        color: var(--foreground, #e8ebf1);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .note-pop textarea:focus {
+        border-color: var(--lab-accent);
+      }
+
+      .np-foot {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 7px;
+      }
+
+      .np-help {
+        flex: 1;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 8.5px;
+      }
+
+      .np-btn {
+        height: 25px;
+        padding: 0 8px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 9.5px;
+        cursor: pointer;
+      }
+
+      .np-btn:hover {
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .np-btn.primary {
+        border-color: transparent;
+        background: var(--lab-accent);
+        color: #1b1609;
+        font-weight: 650;
+      }
+
+      .scrim-ui {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        background: rgba(0, 0, 0, 0.28);
+      }
+
+      .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        width: 340px;
+        max-width: calc(100vw - 24px);
+        border-left: 1px solid var(--border, #313846);
+        background: var(--popover, #171b23);
+        color: var(--popover-foreground, #e8ebf1);
+        box-shadow: -18px 0 50px rgba(0, 0, 0, 0.32);
+      }
+
+      .drawer-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 14px 10px;
+        border-bottom: 1px solid var(--border, #313846);
+      }
+
+      .drawer-head h2 {
+        flex: 1;
+        margin: 0;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .drawer-sub {
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--border, #313846);
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 9.5px;
+        line-height: 1.5;
+      }
+
+      .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+      }
+
+      .note-empty {
+        padding: 20px 10px;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+        text-align: center;
+      }
+
+      .note-item {
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 8px;
+        background: var(--secondary, rgba(127, 127, 127, 0.06));
+      }
+
+      .note-item + .note-item {
+        margin-top: 6px;
+      }
+
+      .nnum {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 17px;
+        height: 17px;
+        border-radius: 50%;
+        background: var(--lab-accent);
+        color: #1d1708;
+        font-size: 9px;
+        font-weight: 800;
+      }
+
+      .nmain {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .nmeta {
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 8.5px;
+      }
+
+      .nmeta b {
+        color: var(--foreground, #e8ebf1);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-weight: 600;
+      }
+
+      .ntext {
+        margin-top: 3px;
+        color: var(--foreground, #e8ebf1);
+        font-size: 10px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .ndel {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        cursor: pointer;
+      }
+
+      .ndel:hover {
+        background: rgba(239, 107, 115, 0.12);
+        color: var(--lab-danger);
+      }
+
+      .drawer-foot {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border-top: 1px solid var(--border, #313846);
+      }
+
+      .drawer-foot .dfill {
+        flex: 1;
+      }
+
+      .drawer-foot .np-btn {
+        height: 27px;
+        padding: 0 9px;
+        font-size: 10px;
+      }
+
+      .drawer-foot .np-btn.clear {
+        border-color: transparent;
+        color: var(--muted-foreground, #8b94a3);
+      }
+
+      .drawer-foot .np-btn.clear:hover {
+        color: var(--lab-danger);
+      }
+
+      .flash {
+        animation: flash 0.8s ease;
+      }
+
+      @keyframes flash {
+        0%,
+        100% {
+          box-shadow: var(--pal-shadow);
+        }
+        35% {
+          box-shadow:
+            0 0 0 2px var(--lab-accent),
+            0 18px 50px rgba(0, 0, 0, 0.36);
+        }
+      }
+
+      @media (max-width: 600px) {
+        .palette {
+          width: calc(100% - 18px);
+        }
+
+        .pbar {
+          gap: 4px;
+          padding-left: 10px;
+        }
+
+        .pbar input {
+          font-size: 11.5px;
+        }
+
+        .psep {
+          margin: 0;
+        }
+
+        .tool-ico,
+        .piconbtn {
+          width: 25px;
+          height: 25px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body data-palette-theme="dark" data-placement="bottom">
+    <svg aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden">
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14"></path>
+      </symbol>
+      <symbol id="i-dots" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1"></circle>
+        <circle cx="12" cy="12" r="1"></circle>
+        <circle cx="19" cy="12" r="1"></circle>
+      </symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </symbol>
+      <symbol id="i-cursor" viewBox="0 0 24 24">
+        <path d="m3 3 7.07 17 2.51-7.39L20 10.07z"></path>
+      </symbol>
+      <symbol id="i-type" viewBox="0 0 24 24">
+        <path d="M4 7V4h16v3M9 20h6M12 4v16"></path>
+      </symbol>
+      <symbol id="i-vertical" viewBox="0 0 24 24">
+        <path d="M12 3v18"></path>
+      </symbol>
+      <symbol id="i-horizontal" viewBox="0 0 24 24">
+        <path d="M3 12h18"></path>
+      </symbol>
+      <symbol id="i-star" viewBox="0 0 24 24">
+        <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"></path>
+      </symbol>
+      <symbol id="i-note" viewBox="0 0 24 24">
+        <path d="M21 15a4 4 0 0 1-4 4H8l-6 3V6a3 3 0 0 1 3-3h12a4 4 0 0 1 4 4z"></path>
+        <path d="M8 9h8M8 13h5"></path>
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18M6 6l12 12"></path>
+      </symbol>
+    </svg>
+
+    <template id="page-tpl">
+      <div class="page">
+        <div class="pnav">
+          <span class="pbrand">app.acme.com</span>
+          <span class="pnav-lines"><i></i><i></i><i></i></span>
+          <span class="pnav-pill"></span>
+        </div>
+        <div class="pbody">
+          <div class="pside"><i></i><i></i><i></i><i></i></div>
+          <div class="pmain">
+            <div class="pline w30"></div>
+            <div class="pline w55"></div>
+            <div class="pline w42"></div>
+            <div class="pgrid"><div class="pcard"></div><div class="pcard"></div><div class="pcard"></div></div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <div class="lab">
+      <div class="toolbar">
+        <div class="toolbar-title">
+          <span class="kicker">Palette · minimal</span>
+          <span class="toolbar-sub">Alt P · dark by default</span>
+        </div>
+        <div class="controls">
+          <div class="segment" role="group" aria-label="Palette theme">
+            <button type="button" data-theme="dark" class="on">Dark</button>
+            <button type="button" data-theme="light">Light</button>
+          </div>
+          <div class="segment" role="group" aria-label="Tool strip placement">
+            <button type="button" data-placement-btn="bottom" class="on">Strip bottom</button>
+            <button type="button" data-placement-btn="top">Strip top</button>
+          </div>
+          <button type="button" class="tool-btn" id="annotateBtn" aria-pressed="false">
+            <svg class="pico"><use href="#i-note"></use></svg>
+            Annotate
+          </button>
+          <button type="button" class="tool-btn" id="notesBtn">
+            Notes
+            <span class="count" id="noteCount">0</span>
+          </button>
+          <button type="button" class="tool-btn primary" id="copyBtn">
+            <svg class="pico"><use href="#i-copy"></use></svg>
+            Copy feedback
+          </button>
+        </div>
+      </div>
+
+      <p class="lab-hint">
+        One palette, two placements. The strip is icon-only in both.
+        <strong>Annotate</strong> then click any part to pin a note.
+      </p>
+
+      <main class="gallery" id="gallery">
+        <article class="card" data-card="A">
+          <div class="card-head">
+            <span class="letter">A</span>
+            <div class="card-title">
+              <h2>Minimal</h2>
+              <p>
+                Search and checkpoints only. The tool strip is four icons, with
+                no labels, keycaps or footer.
+              </p>
+            </div>
+            <div class="card-tools">
+              <button type="button" class="mini star" data-star="A" aria-label="Shortlist A" aria-pressed="false"><svg class="pico"><use href="#i-star"></use></svg></button>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div class="page-slot"></div>
+            <div class="scrim"></div>
+
+            <div class="palette" data-palette="A" aria-label="Minimal palette">
+              <div class="pbar" data-part="search">
+                <svg class="pico"><use href="#i-search"></use></svg>
+                <input type="text" placeholder="Search checkpoints or /route" aria-label="Search checkpoints or routes" />
+
+                <span class="tools-inline" data-part="tools">
+                  <span class="psep"></span>
+                  <button type="button" class="tool-ico" data-action="tool" data-tool="Inspect" title="Inspect"><svg class="pico"><use href="#i-cursor"></use></svg></button>
+                  <button type="button" class="tool-ico" data-action="tool" data-tool="Type" title="Typography"><svg class="pico"><use href="#i-type"></use></svg></button>
+                  <button type="button" class="tool-ico" data-action="tool" data-tool="Vertical" title="Vertical guides"><svg class="pico"><use href="#i-vertical"></use></svg></button>
+                  <button type="button" class="tool-ico" data-action="tool" data-tool="Horizontal" title="Horizontal guides"><svg class="pico"><use href="#i-horizontal"></use></svg></button>
+                </span>
+
+                <span class="psep"></span>
+                <button type="button" class="piconbtn" data-action="scope" aria-pressed="false" title="Show checkpoints from all sites">
+                  <svg class="pico"><use href="#i-globe"></use></svg><span class="sdot"></span>
+                </button>
+              </div>
+
+              <div class="plist" data-part="list">
+                <div class="prow add" data-part="row" data-action="save" role="button" tabindex="0">
+                  <span class="prow-slot"><svg class="pico"><use href="#i-plus"></use></svg></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Save current state</div>
+                    <div class="prow-sub mono">app.acme.com/checkout/payment</div>
+                  </div>
+                </div>
+
+                <div class="prow on" data-part="row" data-action="select">
+                  <span class="prow-slot"></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Payment step</div>
+                    <div class="prow-sub mono">/checkout/payment</div>
+                  </div>
+                  <span class="ptime">2m</span>
+                  <button type="button" class="pmore" data-action="more" aria-label="More actions"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-part="row" data-action="select">
+                  <span class="prow-slot"></span>
+                  <div class="prow-main">
+                    <div class="prow-title mono">/cart</div>
+                    <div class="prow-sub">14m · 31.7 KB</div>
+                  </div>
+                  <span class="ptime">14m</span>
+                  <button type="button" class="pmore" data-action="more" aria-label="More actions"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-part="row" data-action="select">
+                  <span class="prow-slot"></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Order #1042</div>
+                    <div class="prow-sub mono">/orders/1042</div>
+                  </div>
+                  <span class="ptime">1h</span>
+                  <button type="button" class="pmore" data-action="more" aria-label="More actions"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-part="row" data-action="select">
+                  <span class="prow-slot"></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Before checkout</div>
+                    <div class="prow-sub mono">/cart</div>
+                  </div>
+                  <span class="ptime">3h</span>
+                  <button type="button" class="pmore" data-action="more" aria-label="More actions"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-part="row" data-action="select">
+                  <span class="prow-slot"></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Logged out</div>
+                    <div class="prow-sub mono">/login</div>
+                  </div>
+                  <span class="ptime">5d</span>
+                  <button type="button" class="pmore" data-action="more" aria-label="More actions"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-other data-part="row" data-action="select">
+                  <span class="prow-slot"></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Aurora lamp PDP</div>
+                    <div class="prow-sub"><span class="host">staging.acme.com</span><span class="mono"> /products/aurora-lamp</span></div>
+                  </div>
+                  <span class="ptime">2d</span>
+                </div>
+              </div>
+
+              <div class="tools-bottom" data-part="tools">
+                <button type="button" class="tool-ico" data-action="tool" data-tool="Inspect" title="Inspect"><svg class="pico"><use href="#i-cursor"></use></svg></button>
+                <button type="button" class="tool-ico" data-action="tool" data-tool="Type" title="Typography"><svg class="pico"><use href="#i-type"></use></svg></button>
+                <button type="button" class="tool-ico" data-action="tool" data-tool="Vertical" title="Vertical guides"><svg class="pico"><use href="#i-vertical"></use></svg></button>
+                <button type="button" class="tool-ico" data-action="tool" data-tool="Horizontal" title="Horizontal guides"><svg class="pico"><use href="#i-horizontal"></use></svg></button>
+              </div>
+
+              <div class="pins" aria-hidden="true"></div>
+            </div>
+          </div>
+        </article>
+      </main>
+
+      <div class="lab-foot">
+        <strong>Removed:</strong> the <span class="mono">Actions</span> /
+        <span class="mono">Checkpoints</span> labels, bookmark icons, tool labels,
+        footer, keycaps and the all-sites count. The strip and scope are icon-only.
+      </div>
+    </div>
+
+    <div class="scrim-ui" id="uiScrim" hidden></div>
+
+    <aside class="drawer" id="drawer" aria-label="Review notes" hidden>
+      <div class="drawer-head">
+        <h2>Review notes</h2>
+        <button type="button" class="np-close" id="drawerClose" aria-label="Close notes"><svg class="pico" width="14" height="14"><use href="#i-x"></use></svg></button>
+      </div>
+      <div class="drawer-sub" id="drawerSub">No notes yet.</div>
+      <div class="drawer-body" id="noteList"></div>
+      <div class="drawer-foot">
+        <button type="button" class="np-btn clear" id="clearBtn">Clear all</button>
+        <span class="dfill"></span>
+        <button type="button" class="np-btn" id="drawerCopy">Copy feedback</button>
+      </div>
+    </aside>
+
+    <div class="note-pop" id="notePop" hidden>
+      <div class="np-head">
+        <span class="np-variant" id="npVariant">A</span>
+        <span>Note on <b id="npPart">row</b></span>
+        <button type="button" class="np-close" id="npClose" aria-label="Close note"><svg class="pico" width="13" height="13"><use href="#i-x"></use></svg></button>
+      </div>
+      <textarea id="npText" placeholder="What should change here?"></textarea>
+      <div class="np-foot">
+        <span class="np-help">Pinned to this spot</span>
+        <button type="button" class="np-btn" id="npCancel">Cancel</button>
+        <button type="button" class="np-btn primary" id="npSave">Add note</button>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const STORAGE_KEY = "respawn-palette-minimal-v2";
+        const state = {
+          theme: "dark",
+          placement: "bottom",
+          annotate: false,
+          notes: [],
+        };
+
+        const $ = (selector, root = document) => root.querySelector(selector);
+        const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+        const gallery = $("#gallery");
+        const notePop = $("#notePop");
+        const npText = $("#npText");
+        const npPart = $("#npPart");
+        const npVariant = $("#npVariant");
+        const noteList = $("#noteList");
+        const drawer = $("#drawer");
+        const uiScrim = $("#uiScrim");
+        const drawerSub = $("#drawerSub");
+        const drawerCopy = $("#drawerCopy");
+        const clearBtn = $("#clearBtn");
+        const annotateBtn = $("#annotateBtn");
+        const notesBtn = $("#notesBtn");
+        const copyBtn = $("#copyBtn");
+        const noteCount = $("#noteCount");
+        let pending = null;
+        let noteSeq = 0;
+        let clearArmed = false;
+        let clearTimer = 0;
+
+        function safeStorage(fn) {
+          try {
+            return fn();
+          } catch {
+            return undefined;
+          }
+        }
+
+        function load() {
+          const saved = safeStorage(() =>
+            JSON.parse(localStorage.getItem(STORAGE_KEY) || "null")
+          );
+          if (!saved || typeof saved !== "object") return;
+          if (saved.theme === "light" || saved.theme === "dark") state.theme = saved.theme;
+          if (saved.placement === "top" || saved.placement === "bottom") state.placement = saved.placement;
+          if (Array.isArray(saved.notes)) state.notes = saved.notes;
+          noteSeq = state.notes.reduce((max, note) => Math.max(max, note.id || 0), 0);
+        }
+
+        function persist() {
+          safeStorage(() =>
+            localStorage.setItem(
+              STORAGE_KEY,
+              JSON.stringify({
+                theme: state.theme,
+                placement: state.placement,
+                notes: state.notes,
+              })
+            )
+          );
+        }
+
+        function applyChrome() {
+          document.body.dataset.paletteTheme = state.theme;
+          document.body.dataset.placement = state.placement;
+          $$(".segment [data-theme]").forEach((button) => {
+            button.classList.toggle("on", button.dataset.theme === state.theme);
+          });
+          $$("[data-placement-btn]").forEach((button) => {
+            button.classList.toggle("on", button.dataset.placementBtn === state.placement);
+          });
+          annotateBtn.classList.toggle("on", state.annotate);
+          annotateBtn.setAttribute("aria-pressed", String(state.annotate));
+          document.body.classList.toggle("annotate", state.annotate);
+          noteCount.textContent = String(state.notes.length);
+          notesBtn.title = state.notes.length ? `${state.notes.length} note(s)` : "No notes yet";
+          renderDrawer();
+        }
+
+        function setTheme(theme) {
+          state.theme = theme;
+          persist();
+          applyChrome();
+        }
+
+        function setPlacement(placement) {
+          state.placement = placement;
+          persist();
+          applyChrome();
+        }
+
+        function toggleAnnotate() {
+          state.annotate = !state.annotate;
+          if (!state.annotate) closePopover();
+          applyChrome();
+        }
+
+        function closePopover() {
+          notePop.hidden = true;
+          pending = null;
+        }
+
+        function openPopover(x, y, part, variant) {
+          npVariant.textContent = variant;
+          npPart.textContent = part;
+          npText.value = "";
+          notePop.hidden = false;
+          const width = 292;
+          const height = 168;
+          const left = Math.max(8, Math.min(x + 12, window.innerWidth - width - 8));
+          const top = Math.max(8, Math.min(y + 10, window.innerHeight - height - 8));
+          notePop.style.left = `${left}px`;
+          notePop.style.top = `${top}px`;
+          requestAnimationFrame(() => npText.focus());
+        }
+
+        function renderPins() {
+          $$(".palette").forEach((palette) => {
+            const layer = $(".pins", palette);
+            if (!layer) return;
+            layer.replaceChildren(
+              ...state.notes
+                .filter((note) => note.variant === palette.dataset.palette)
+                .map((note) => {
+                  const pin = document.createElement("span");
+                  pin.className = "pin";
+                  pin.style.left = `${note.x}%`;
+                  pin.style.top = `${note.y}%`;
+                  pin.textContent = String(note.id);
+                  pin.title = note.text;
+                  return pin;
+                })
+            );
+          });
+        }
+
+        function escapeHtml(value) {
+          return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;");
+        }
+
+        function renderDrawer() {
+          drawerSub.textContent = state.notes.length
+            ? `${state.notes.length} note${state.notes.length === 1 ? "" : "s"} pinned.`
+            : "No notes yet. Turn on Annotate and click a palette part.";
+
+          if (!state.notes.length) {
+            noteList.innerHTML =
+              '<div class="note-empty">Turn on Annotate, then click any part of the palette to leave a note.</div>';
+            return;
+          }
+
+          noteList.replaceChildren(
+            ...state.notes.map((note) => {
+              const item = document.createElement("div");
+              item.className = "note-item";
+              item.innerHTML = `
+                <span class="nnum">${note.id}</span>
+                <div class="nmain">
+                  <div class="nmeta"><b>${escapeHtml(`${note.variant} · ${note.part}`)}</b></div>
+                  <div class="ntext"></div>
+                </div>
+                <button type="button" class="ndel" aria-label="Delete note ${note.id}">×</button>
+              `;
+              $(".ntext", item).textContent = note.text;
+              $(".ndel", item).addEventListener("click", (event) => {
+                event.stopPropagation();
+                deleteNote(note.id);
+              });
+              item.addEventListener("click", () => {
+                const palette = $(`.palette[data-palette="${note.variant}"]`);
+                if (!palette) return;
+                palette.scrollIntoView({ behavior: "smooth", block: "center" });
+                palette.classList.remove("flash");
+                void palette.offsetWidth;
+                palette.classList.add("flash");
+              });
+              return item;
+            })
+          );
+        }
+
+        function addNote(text) {
+          if (!pending || !text.trim()) return;
+          const note = {
+            id: ++noteSeq,
+            variant: pending.variant,
+            part: pending.part,
+            x: pending.x,
+            y: pending.y,
+            text: text.trim(),
+          };
+          state.notes.push(note);
+          persist();
+          renderPins();
+          applyChrome();
+          closePopover();
+          openDrawer();
+        }
+
+        function deleteNote(id) {
+          state.notes = state.notes.filter((note) => note.id !== id);
+          persist();
+          renderPins();
+          applyChrome();
+        }
+
+        function openDrawer() {
+          drawer.hidden = false;
+          uiScrim.hidden = false;
+          renderDrawer();
+        }
+
+        function closeDrawer() {
+          drawer.hidden = true;
+          uiScrim.hidden = true;
+        }
+
+        function feedbackText() {
+          const lines = [
+            "reSpawn palette (Alt+P) — minimal feedback",
+            "",
+            `Palette theme: ${state.theme}`,
+            `Tool strip: ${state.placement}`,
+            "",
+          ];
+          if (state.notes.length) {
+            lines.push("Notes:");
+            for (const note of state.notes) {
+              lines.push(`- ${note.part}: ${note.text}`);
+            }
+          } else {
+            lines.push("Notes: (none)");
+          }
+          return lines.join("\n");
+        }
+
+        async function copyFeedback() {
+          const text = feedbackText();
+          let copied = false;
+          try {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+          } catch {
+            const area = document.createElement("textarea");
+            area.value = text;
+            area.style.position = "fixed";
+            area.style.opacity = "0";
+            document.body.append(area);
+            area.select();
+            try {
+              copied = document.execCommand("copy");
+            } catch {
+              copied = false;
+            }
+            area.remove();
+          }
+          if (!copied) {
+            npText.value = text;
+            notePop.hidden = false;
+            npPart.textContent = "feedback";
+            npVariant.textContent = "A";
+            notePop.style.left = "12px";
+            notePop.style.top = "12px";
+            return;
+          }
+          for (const button of [copyBtn, drawerCopy]) {
+            if (!button) continue;
+            const old = button.textContent;
+            button.textContent = "Copied ✓";
+            setTimeout(() => {
+              button.textContent = old;
+            }, 1500);
+          }
+        }
+
+        const pageTpl = $("#page-tpl");
+        $$(".page-slot").forEach((slot) => slot.append(pageTpl.content.cloneNode(true)));
+
+        $$(".segment [data-theme]").forEach((button) => {
+          button.addEventListener("click", () => setTheme(button.dataset.theme));
+        });
+        $$("[data-placement-btn]").forEach((button) => {
+          button.addEventListener("click", () => setPlacement(button.dataset.placementBtn));
+        });
+        annotateBtn.addEventListener("click", toggleAnnotate);
+        notesBtn.addEventListener("click", openDrawer);
+        copyBtn.addEventListener("click", () => void copyFeedback());
+        drawerCopy.addEventListener("click", () => void copyFeedback());
+        $("#drawerClose").addEventListener("click", closeDrawer);
+        uiScrim.addEventListener("click", closeDrawer);
+        $("#npClose").addEventListener("click", closePopover);
+        $("#npCancel").addEventListener("click", closePopover);
+        $("#npSave").addEventListener("click", () => addNote(npText.value));
+        npText.addEventListener("keydown", (event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            addNote(npText.value);
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closePopover();
+          }
+        });
+        clearBtn.addEventListener("click", () => {
+          if (!state.notes.length) return;
+          if (!clearArmed) {
+            clearArmed = true;
+            clearBtn.textContent = "Clear all?";
+            clearTimeout(clearTimer);
+            clearTimer = setTimeout(() => {
+              clearArmed = false;
+              clearBtn.textContent = "Clear all";
+            }, 2600);
+            return;
+          }
+          state.notes = [];
+          persist();
+          renderPins();
+          applyChrome();
+          clearArmed = false;
+          clearBtn.textContent = "Clear all";
+        });
+
+        gallery.addEventListener("click", (event) => {
+          if (state.annotate) return;
+          const action = event.target.closest("[data-action]");
+          if (!action) return;
+          const palette = action.closest(".palette");
+          if (!palette) return;
+          const kind = action.dataset.action;
+
+          if (kind === "scope") {
+            const on = palette.classList.toggle("show-all");
+            action.classList.toggle("on", on);
+            action.setAttribute("aria-pressed", String(on));
+            action.title = on
+              ? "Showing checkpoints from all sites"
+              : "Show checkpoints from all sites";
+            return;
+          }
+
+          if (kind === "tool") {
+            const tool = action.dataset.tool;
+            $$("[data-action='tool']", palette).forEach((button) => {
+              button.classList.toggle("on", button.dataset.tool === tool);
+            });
+            return;
+          }
+
+          if (kind === "select") {
+            const list = action.closest(".plist");
+            $$(".prow.on", list).forEach((item) => item.classList.remove("on"));
+            action.classList.add("on");
+            return;
+          }
+
+          if (kind === "more") {
+            return;
+          }
+        });
+
+        gallery.addEventListener(
+          "click",
+          (event) => {
+            if (!state.annotate) return;
+            const palette = event.target.closest(".palette");
+            if (!palette) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const partEl = event.target.closest("[data-part]") || palette;
+            const rect = palette.getBoundingClientRect();
+            pending = {
+              variant: palette.dataset.palette,
+              part: partEl.dataset.part || "palette",
+              x: Math.max(1, Math.min(99, ((event.clientX - rect.left) / rect.width) * 100)),
+              y: Math.max(1, Math.min(99, ((event.clientY - rect.top) / rect.height) * 100)),
+            };
+            openPopover(event.clientX, event.clientY, pending.part, pending.variant);
+          },
+          true
+        );
+
+        document.addEventListener("keydown", (event) => {
+          const typing =
+            event.target instanceof HTMLElement &&
+            (event.target.matches("input, textarea") || event.target.isContentEditable);
+          if (event.key === "Escape") {
+            if (!notePop.hidden) closePopover();
+            else if (!drawer.hidden) closeDrawer();
+            return;
+          }
+          if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+          if (event.key.toLowerCase() === "c") {
+            event.preventDefault();
+            toggleAnnotate();
+          }
+        });
+
+        load();
+        applyChrome();
+        renderPins();
+      })();
+    </script>
+  </body>
+</html>

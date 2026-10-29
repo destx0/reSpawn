@@ -3,7 +3,6 @@ import type {
   BoxEdges,
   InspectMeasurement,
   Rect,
-  TextBlockAnnotation,
   TextInspection,
 } from './types.js';
 
@@ -121,67 +120,4 @@ export const getInspectMeasurement = (
     label: getElementLabel(element),
     styles: getTextInspection(element, ownerWindow),
   };
-};
-
-const isVisibleTextCandidate = (element: Element, ownerWindow: Window) => {
-  const text = (element as HTMLElement).innerText?.trim() ?? '';
-  if (!text) return false;
-
-  const style = ownerWindow.getComputedStyle(element);
-  if (
-    style.display === 'none' ||
-    style.visibility === 'hidden' ||
-    Number.parseFloat(style.opacity || '1') === 0
-  ) {
-    return false;
-  }
-
-  const rect = element.getBoundingClientRect();
-  if (rect.width < 8 || rect.height < 8) return false;
-
-  // Keep the innermost block: a parent whose child also holds text would
-  // otherwise be annotated on top of its child.
-  for (const child of Array.from(element.children)) {
-    if (
-      ((child as HTMLElement).innerText?.trim() ?? '') &&
-      child.getBoundingClientRect().height > 0
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-export const getVisibleTextBlocks = (
-  ownerDocument: Document,
-  ownerWindow: Window,
-  overlayRoot: Node | null,
-  limit = 160,
-): TextBlockAnnotation[] => {
-  const body = ownerDocument.body;
-  if (!body) return [];
-
-  const blocks: TextBlockAnnotation[] = [];
-  for (const node of Array.from(body.querySelectorAll('*'))) {
-    if (overlayRoot && overlayRoot.contains(node)) continue;
-    if (!isVisibleTextCandidate(node, ownerWindow)) continue;
-
-    const rect = getRectFromDom(node);
-    const text = ((node as HTMLElement).innerText || node.textContent || '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    blocks.push({
-      id: `${node.tagName.toLowerCase()}-${Math.round(rect.left)}-${Math.round(
-        rect.top,
-      )}-${text.slice(0, 24)}`,
-      rect,
-      text,
-      styles: getTextInspection(node, ownerWindow),
-    });
-
-    if (blocks.length >= limit) break;
-  }
-
-  return blocks;
 };

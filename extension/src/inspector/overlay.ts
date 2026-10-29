@@ -6,10 +6,9 @@ import {
   OVERLAY_HOST_ID,
   OVERLAY_Z_INDEX,
   PADDING_COLOR,
-  TEXT_BLOCK_LIMIT,
 } from './constants.js';
 import { getDistanceOverlay } from './distances.js';
-import { getInspectMeasurement, getRectFromDom, getVisibleTextBlocks } from './dom.js';
+import { getInspectMeasurement, getRectFromDom } from './dom.js';
 import { formatEdges, formatGap, formatMeasurement, getBandStrips } from './format.js';
 import { clamp, getViewportSize, rectsEqual } from './geometry.js';
 import {
@@ -20,6 +19,7 @@ import {
 } from './guides.js';
 import { getMinimumCommonParent, getTargetElement } from './selection.js';
 import { OVERLAY_STYLE } from './styles.js';
+import { TypographyLayer } from './typography-layer.js';
 import type {
   DistanceOverlay,
   Guide,
@@ -27,14 +27,12 @@ import type {
   InspectMeasurement,
   Point,
   Rect,
-  TextBlockAnnotation,
   ToolMode,
 } from './types.js';
 
 export type InspectorState = {
   readonly mode: ToolMode;
   readonly orientation: GuideOrientation;
-  readonly typography: boolean;
   readonly guideCount: number;
 };
 
@@ -63,6 +61,7 @@ const isEditable = (target: EventTarget | null) => {
     element &&
       (element instanceof HTMLInputElement ||
         element instanceof HTMLTextAreaElement ||
+        element instanceof HTMLSelectElement ||
         (element as HTMLElement).isContentEditable),
   );
 };
@@ -111,13 +110,12 @@ export class InspectorOverlay {
   private hoverElement: Element | null = null;
   private distance: DistanceOverlay | null = null;
   private altPressed = false;
-  private typography = false;
-  private textBlocks: TextBlockAnnotation[] = [];
+  private typographyLayer: TypographyLayer | null = null;
   private suppressed = false;
 
   private lastPoint: Point | null = null;
+  private pressPoint: Point | null = null;
   private pointerFrame = 0;
-  private typographyTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly disposers: Array<() => void> = [];
 
   constructor(options: InspectorOverlayOptions) {
@@ -133,7 +131,6 @@ export class InspectorOverlay {
     return {
       mode: this.mode,
       orientation: this.orientation,
-      typography: this.typography,
       guideCount: this.guides.length,
     };
   }
@@ -170,6 +167,16 @@ export class InspectorOverlay {
     this.root = root;
     this.doc.documentElement.append(host);
 
+    const typographyLayer = this.layers.get('typography');
+    if (typographyLayer) {
+      this.typographyLayer = new TypographyLayer({
+        document: this.doc,
+        window: this.win,
+        host,
+        layer: typographyLayer,
+      });
+    }
+
     this.observeHost();
     this.bindEvents();
     this.renderAll();
@@ -178,7 +185,8 @@ export class InspectorOverlay {
   destroy() {
     for (const dispose of this.disposers.splice(0)) dispose();
     if (this.pointerFrame) this.win.cancelAnimationFrame(this.pointerFrame);
-    if (this.typographyTimer) clearTimeout(this.typographyTimer);
+    this.typographyLayer?.destroy();
+    this.typographyLayer = null;
     this.observer?.disconnect();
     this.observer = null;
     this.restoreCursor();
@@ -191,7 +199,17 @@ export class InspectorOverlay {
   /** The palette covers the page; while it is open the inspector steps aside. */
   setSuppressed(suppressed: boolean) {
     this.suppressed = suppressed;
-    if (suppressed) this.clearHover();
+    this.pressPoint = null;
+    this.typographyLayer?.setPaused(suppressed);
+    if (suppressed) {
+      this.restoreCursor();
+      this.clearHover();
+    } else {
+      this.applyCursor();
+      if (this.lastPoint && this.mode !== 'none') {
+        this.schedulePointerUpdate();
+      }
+    }
   }
 
   toggleMode(mode: Exclude<ToolMode, 'none'>) {
@@ -200,9 +218,17 @@ export class InspectorOverlay {
 
   setMode(mode: ToolMode) {
     if (this.mode === mode) return;
+    const previous = this.mode;
     this.mode = mode;
     this.preview = null;
     this.draggingGuideId = null;
+    this.pressPoint = null;
+    if (previous === 'typography' && mode !== 'typography') {
+      this.typographyLayer?.disable();
+    }
+    if (mode === 'typography' && previous !== 'typography') {
+      this.typographyLayer?.enable();
+    }
     this.clearHover();
     this.applyCursor();
     this.renderSelection();
@@ -218,12 +244,6 @@ export class InspectorOverlay {
     this.notify();
   }
 
-  toggleTypography() {
-    this.typography = !this.typography;
-    this.refreshTypography();
-    this.notify();
-  }
-
   clear() {
     this.selected = null;
     this.selectedElement = null;
@@ -232,6 +252,8 @@ export class InspectorOverlay {
     this.preview = null;
     this.draggingGuideId = null;
     this.altPressed = false;
+    this.pressPoint = null;
+    this.typographyLayer?.reset();
     this.clearHover();
     this.renderSelection();
     this.renderDistance();
@@ -286,6 +308,7 @@ export class InspectorOverlay {
     win.addEventListener('pointerdown', this.onPointerDown, true);
     win.addEventListener('pointermove', this.onPointerMove, true);
     win.addEventListener('pointerup', this.onPointerUp, true);
+    win.addEventListener('auxclick', this.onAuxClick, true);
     win.addEventListener('click', this.onClick, true);
     doc.addEventListener('scroll', this.onViewportChange, true);
     win.addEventListener('resize', this.onViewportChange);
@@ -296,6 +319,7 @@ export class InspectorOverlay {
       () => win.removeEventListener('pointerdown', this.onPointerDown, true),
       () => win.removeEventListener('pointermove', this.onPointerMove, true),
       () => win.removeEventListener('pointerup', this.onPointerUp, true),
+      () => win.removeEventListener('auxclick', this.onAuxClick, true),
       () => win.removeEventListener('click', this.onClick, true),
       () => doc.removeEventListener('scroll', this.onViewportChange, true),
       () => win.removeEventListener('resize', this.onViewportChange),
@@ -316,21 +340,72 @@ export class InspectorOverlay {
       return;
     }
 
-    if (event.key === 'Alt' && this.mode === 'select') {
-      if (!this.altPressed) {
-        this.altPressed = true;
-        this.updateDistance();
-      }
-      return;
-    }
+    if (this.mode === 'typography' && this.handleTypographyKey(event)) return;
 
     if (event.key === 'Escape' && this.mode !== 'none') {
       event.preventDefault();
       event.stopImmediatePropagation();
       this.clear();
       this.setMode('none');
+      return;
+    }
+
+    // `A` toggles typography outside text fields and without a modifier, so
+    // page typing, Ctrl/Cmd+A and Alt chords keep working.
+    if (
+      !event.repeat &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key.toLowerCase() === 'a' &&
+      !isEditable(event.composedPath()[0] ?? event.target)
+    ) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.toggleMode('typography');
+      return;
+    }
+
+    if (event.key === 'Alt' && this.mode === 'select') {
+      if (!this.altPressed) {
+        this.altPressed = true;
+        this.updateDistance();
+      }
     }
   };
+
+  /**
+   * Typography keys: undo/redo for pins first, then Escape clears pins and
+   * leaves the mode on. Returns true when the event was consumed.
+   */
+  private handleTypographyKey(event: KeyboardEvent) {
+    const target = event.composedPath()[0] ?? event.target;
+    if (
+      !isEditable(target) &&
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      event.key.toLowerCase() === 'z'
+    ) {
+      const handled = event.shiftKey
+        ? this.typographyLayer?.redo()
+        : this.typographyLayer?.undo();
+      if (handled) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return true;
+      }
+      return false;
+    }
+
+    if (event.key !== 'Escape') return false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (this.typographyLayer?.clearPins()) return true;
+    this.clear();
+    this.setMode('none');
+    return true;
+  }
 
   private onKeyUp = (event: KeyboardEvent) => {
     if (event.key !== 'Alt' || !this.altPressed) return;
@@ -341,11 +416,19 @@ export class InspectorOverlay {
 
   private onPointerDown = (event: PointerEvent) => {
     if (this.suppressed || this.mode === 'none') return;
+    if (this.mode === 'typography' && this.typographyLayer?.isOwnEvent(event)) {
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
 
     const point = { x: event.clientX, y: event.clientY };
     this.lastPoint = point;
+
+    if (this.mode === 'typography') {
+      this.pressPoint = point;
+      return;
+    }
 
     if (this.mode === 'guides') {
       const existing = findGuideAtPoint(this.guides, point);
@@ -374,6 +457,9 @@ export class InspectorOverlay {
 
   private onPointerMove = (event: PointerEvent) => {
     if (this.suppressed || this.mode === 'none') return;
+    if (this.mode === 'typography' && this.typographyLayer?.isOwnEvent(event)) {
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
     this.lastPoint = { x: event.clientX, y: event.clientY };
@@ -382,16 +468,46 @@ export class InspectorOverlay {
 
   private onPointerUp = (event: PointerEvent) => {
     if (this.suppressed || this.mode === 'none') return;
+    if (this.mode === 'typography' && this.typographyLayer?.isOwnEvent(event)) {
+      this.pressPoint = null;
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
+    if (this.mode === 'typography') {
+      const press = this.pressPoint;
+      this.pressPoint = null;
+      if (
+        press &&
+        Math.hypot(event.clientX - press.x, event.clientY - press.y) <= 4
+      ) {
+        this.typographyLayer?.pinAt({
+          x: event.clientX,
+          y: event.clientY,
+        });
+      }
+      return;
+    }
     if (!this.draggingGuideId) return;
     this.draggingGuideId = null;
     this.renderGuides();
     this.notify();
   };
 
+  private onAuxClick = (event: MouseEvent) => {
+    if (this.suppressed || this.mode === 'none') return;
+    if (this.mode === 'typography' && this.typographyLayer?.isOwnEvent(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+
   private onClick = (event: MouseEvent) => {
     if (this.suppressed || this.mode === 'none') return;
+    if (this.mode === 'typography' && this.typographyLayer?.isOwnEvent(event)) {
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
   };
@@ -406,7 +522,7 @@ export class InspectorOverlay {
       }
     }
     this.renderSelection();
-    this.scheduleTypographyRefresh();
+    this.typographyLayer?.sync();
     if (this.lastPoint && this.mode !== 'none') {
       this.schedulePointerUpdate();
     }
@@ -421,7 +537,8 @@ export class InspectorOverlay {
       const point = this.lastPoint;
       if (!point || this.mode === 'none') return;
       if (this.mode === 'select') this.updateHover(point);
-      else this.updateGuidePreview(point);
+      else if (this.mode === 'guides') this.updateGuidePreview(point);
+      else this.typographyLayer?.hoverAt(point);
     });
   }
 
@@ -536,40 +653,9 @@ export class InspectorOverlay {
     this.hoverRect = null;
     this.hoverElement = null;
     this.distance = null;
+    this.pressPoint = null;
     this.renderHover();
     this.renderDistance();
-  }
-
-  private scheduleTypographyRefresh() {
-    if (!this.typography) return;
-    if (this.typographyTimer) clearTimeout(this.typographyTimer);
-    this.typographyTimer = setTimeout(() => {
-      this.typographyTimer = null;
-      this.refreshTypography();
-    }, 120);
-  }
-
-  private refreshTypography() {
-    if (!this.typography) {
-      this.textBlocks = [];
-      this.renderTypography();
-      return;
-    }
-
-    const viewport = getViewportSize(this.win);
-    this.textBlocks = getVisibleTextBlocks(
-      this.doc,
-      this.win,
-      this.root,
-      TEXT_BLOCK_LIMIT,
-    ).filter(
-      (block) =>
-        block.rect.top >= 0 &&
-        block.rect.top <= viewport.height &&
-        block.rect.left >= 0 &&
-        block.rect.left <= viewport.width,
-    );
-    this.renderTypography();
   }
 
   private applyCursor() {
@@ -579,7 +665,11 @@ export class InspectorOverlay {
       return;
     }
     if (this.cursorBefore === null) this.cursorBefore = html.style.cursor;
-    html.style.setProperty('cursor', 'crosshair', 'important');
+    html.style.setProperty(
+      'cursor',
+      this.mode === 'typography' ? 'text' : 'crosshair',
+      'important',
+    );
   }
 
   private restoreCursor() {
@@ -601,7 +691,6 @@ export class InspectorOverlay {
     this.renderSelection();
     this.renderDistance();
     this.renderGuides();
-    this.renderTypography();
   }
 
   private layer(name: LayerName) {
@@ -835,45 +924,6 @@ export class InspectorOverlay {
       element.style.top = `${guide.position}px`;
     }
     return element;
-  }
-
-  private renderTypography() {
-    const layer = this.layer('typography');
-    if (!layer) return;
-    layer.replaceChildren();
-    if (!this.typography) return;
-
-    const viewport = getViewportSize(this.win);
-    for (const block of this.textBlocks) {
-      const chip = this.element('div', 'chip');
-
-      const swatch = this.element('span', 'chip__swatch');
-      swatch.style.background = block.styles.color;
-      chip.append(
-        swatch,
-        this.text('span', '', block.styles.fontSize),
-        this.text('span', 'chip__muted', block.styles.lineHeight),
-        this.text('span', 'chip__muted', block.styles.color),
-      );
-      layer.append(chip);
-
-      // Chips sit just right of the block, or inside its right edge when the
-      // block reaches the viewport. Measuring the chip keeps stacked lines from
-      // stacking their chips on top of each other.
-      const width = chip.offsetWidth;
-      const height = chip.offsetHeight;
-      let left = block.rect.left + block.rect.width + 6;
-      if (left + width > viewport.width - 4) {
-        left = Math.max(4, block.rect.left + block.rect.width - width - 2);
-      }
-      const top = clamp(
-        block.rect.top + (block.rect.height - height) / 2,
-        2,
-        Math.max(2, viewport.height - height - 2),
-      );
-      chip.style.left = `${left}px`;
-      chip.style.top = `${top}px`;
-    }
   }
 
   private text(tag: 'span', className: string, value: string) {

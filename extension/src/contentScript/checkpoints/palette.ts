@@ -33,13 +33,14 @@ type Item =
   | { readonly kind: 'save'; readonly name: string }
   | { readonly kind: 'checkpoint'; readonly checkpoint: CheckpointMeta };
 
-type InspectorTool = 'inspect' | 'type' | 'vertical' | 'horizontal';
+type InspectorTool = 'inspect' | 'typography' | 'vertical' | 'horizontal';
 
 const INSPECTOR_TOOLS: ReadonlyArray<{
   readonly id: InspectorTool;
   readonly label: string;
   readonly shortLabel: string;
   readonly hint: string;
+  readonly shortcut?: string;
 }> = [
   {
     id: 'inspect',
@@ -48,10 +49,11 @@ const INSPECTOR_TOOLS: ReadonlyArray<{
     hint: 'alt I · click an element',
   },
   {
-    id: 'type',
-    label: 'Type',
-    shortLabel: 'Type',
-    hint: 'typography overlay',
+    id: 'typography',
+    label: 'Typography',
+    shortLabel: 'Typography',
+    hint: 'hover text to inspect',
+    shortcut: 'A',
   },
   {
     id: 'vertical',
@@ -90,14 +92,13 @@ const ICONS = {
     '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
   ),
   cursor: svg('<path d="m3 3 7.07 17 2.51-7.39L20 10.07z"/>'),
-  type: svg('<path d="M4 7V4h16v3M9 20h6M12 4v16"/>'),
   vertical: svg('<path d="M12 3v18"/>'),
   horizontal: svg('<path d="M3 12h18"/>'),
 };
 
 const TOOL_ICONS: Record<InspectorTool, string> = {
   inspect: ICONS.cursor,
-  type: ICONS.type,
+  typography: '<span class="aa" aria-hidden="true">Aa</span>',
   vertical: ICONS.vertical,
   horizontal: ICONS.horizontal,
 };
@@ -218,6 +219,13 @@ input::placeholder { color: var(--faint); }
   height: 32px; padding: 0 8px; border: 1px solid transparent; border-radius: 7px;
   background: transparent; color: var(--muted);
   font: inherit; font-size: 12px; cursor: pointer;
+}
+.tool-btn span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tool-btn .aa {
+  flex: none; overflow: visible; font-size: 12px; font-weight: 600;
+  letter-spacing: -0.03em; line-height: 1;
 }
 .tool-btn:hover { background: var(--hover); color: var(--fg); }
 .tool-btn.on {
@@ -442,8 +450,8 @@ class Palette {
     switch (tool) {
       case 'inspect':
         return state.mode === 'select';
-      case 'type':
-        return state.typography;
+      case 'typography':
+        return state.mode === 'typography';
       case 'vertical':
         return state.mode === 'guides' && state.orientation === 'vertical';
       case 'horizontal':
@@ -463,8 +471,11 @@ class Palette {
       button.type = 'button';
       button.className = 'tool-btn';
       button.dataset.tool = tool.id;
-      button.title = `${tool.label} — ${tool.hint}`;
-      button.setAttribute('aria-label', tool.label);
+      const name = tool.shortcut
+        ? `${tool.label} (${tool.shortcut})`
+        : tool.label;
+      button.title = `${name} — ${tool.hint}`;
+      button.setAttribute('aria-label', name);
       button.innerHTML = TOOL_ICONS[tool.id];
       const label = document.createElement('span');
       label.textContent = tool.shortLabel;
@@ -757,8 +768,8 @@ class Palette {
       case 'inspect':
         inspector.toggleMode('select');
         break;
-      case 'type':
-        inspector.toggleTypography();
+      case 'typography':
+        inspector.toggleMode('typography');
         break;
       case 'vertical':
         inspector.setOrientation('vertical');

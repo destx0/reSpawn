@@ -30,8 +30,8 @@ export type Guide = {
   readonly position: number;
 };
 
-/** `none` leaves the page alone; the other two take over pointer events. */
-export type ToolMode = 'none' | 'select' | 'guides';
+/** `none` leaves the page alone; the other three take over pointer events. */
+export type ToolMode = 'none' | 'select' | 'guides' | 'typography';
 
 export type TextInspection = {
   readonly fontFamily: string;
@@ -60,13 +60,6 @@ export type InspectMeasurement = {
   /** The parent's border box when `gap` is set, to show where the gap lives. */
   readonly parentRect: Rect | null;
   readonly label: string;
-  readonly styles: TextInspection;
-};
-
-export type TextBlockAnnotation = {
-  readonly id: string;
-  readonly rect: Rect;
-  readonly text: string;
   readonly styles: TextInspection;
 };
 

@@ -564,13 +564,13 @@ async function main() {
     rx.sessionId,
     `(() => {
       const root = document.getElementById('respawn-palette-host')?.shadowRoot;
-      return root ? [...root.querySelectorAll('.toolbar .tool-btn')].map((b) => b.textContent) : null;
+      return root ? [...root.querySelectorAll('.toolbar .tool-btn')].map((b) => b.querySelector('span:not(.aa)')?.textContent ?? b.textContent) : null;
     })()`,
   ).catch(() => null);
   check(
     'inspector: palette shows the tool bar',
     Array.isArray(toolButtons) &&
-      ['Inspect', 'Type', 'Vertical', 'Horizontal'].every((name) =>
+      ['Inspect', 'Typography', 'Vertical', 'Horizontal'].every((name) =>
         toolButtons.includes(name),
       ),
     toolButtons,
@@ -614,33 +614,377 @@ async function main() {
   check('inspector: tool bar starts guide mode and a click places a guide', guideCount === 1, guideCount);
   await pressNamed(rx.sessionId, 'Escape');
 
-  // Typography overlay from the tool bar.
+  // Typography from the tool bar: hover shows computed values, click pins.
   await key(rx.sessionId, 'KeyP', 'p', 1);
   await waitFor(
     rx.sessionId,
     `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
     3000,
   );
-  await focusTool('type');
+  await focusTool('typography');
   await pressNamed(rx.sessionId, 'Enter');
-  const chips = await waitFor(
+  await waitFor(
+    rx.sessionId,
+    `!document.getElementById('respawn-palette-host')`,
+    3000,
+  );
+
+  // The tool button reflects the mode when the palette reopens.
+  await key(rx.sessionId, 'KeyP', 'p', 1);
+  await waitFor(
+    rx.sessionId,
+    `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
+    3000,
+  );
+  const typographyPressed = await evaluate(
+    rx.sessionId,
+    `document.getElementById('respawn-palette-host')?.shadowRoot?.querySelector('[data-tool="typography"]')?.getAttribute('aria-pressed') ?? null`,
+  ).catch(() => null);
+  check(
+    'inspector: Typography button exposes its pressed state',
+    typographyPressed === 'true',
+    typographyPressed,
+  );
+  await pressNamed(rx.sessionId, 'Escape');
+  await waitFor(
+    rx.sessionId,
+    `!document.getElementById('respawn-palette-host')`,
+    3000,
+  );
+
+  const hoverTypography = async () => {
+    const target = await rectOf('state');
+    await send(
+      'Input.dispatchMouseEvent',
+      { type: 'mouseMoved', x: target.x, y: target.y, button: 'none' },
+      rx.sessionId,
+    );
+    return waitFor(
+      rx.sessionId,
+      `(() => {
+        const root = document.getElementById('respawn-inspector-host')?.shadowRoot;
+        const card = root?.querySelector('.ti-card:not(.ti-card--pinned)');
+        if (!card || card.dataset.state !== 'visible') return null;
+        return {
+          text: card.textContent,
+          labels: [...card.querySelectorAll('.ti-label')].map((e) => e.textContent),
+        };
+      })()`,
+      3000,
+    ).catch(() => null);
+  };
+
+  const typographyCard = await hoverTypography();
+  check(
+    'inspector: Typography hover shows the computed card',
+    !!typographyCard &&
+      ['Family', 'Size', 'Weight', 'Line height', 'Tracking'].every((label) =>
+        typographyCard.labels.includes(label),
+      ),
+    typographyCard,
+  );
+
+  // A value driven by a CSS custom property carries the token in the card.
+  await evaluate(
     rx.sessionId,
     `(() => {
-      const count = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.chip').length ?? 0;
+      const style = document.createElement('style');
+      style.id = 'ti-token-style';
+      style.textContent =
+        ':root { --ti-font: Georgia, serif; } #ti-token { font-family: var(--ti-font); font-size: 20px; }';
+      document.head.append(style);
+      const element = document.createElement('div');
+      element.id = 'ti-token';
+      element.textContent = 'Token heading';
+      document.body.append(element);
+      return true;
+    })()`,
+  );
+  const tokenCenter = await rectOf('ti-token');
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseMoved', x: tokenCenter.x, y: tokenCenter.y, button: 'none' },
+    rx.sessionId,
+  );
+  const tokenCard = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-inspector-host')?.shadowRoot;
+      const card = root?.querySelector('.ti-card:not(.ti-card--pinned)');
+      if (!card || card.dataset.state !== 'visible') return null;
+      return card.textContent?.includes('var(--ti-font)') ? card.textContent : null;
+    })()`,
+    3000,
+  ).catch(() => null);
+  check(
+    'inspector: Typography shows the CSS variable behind a value',
+    !!tokenCard,
+    tokenCard,
+  );
+  await evaluate(
+    rx.sessionId,
+    `document.getElementById('ti-token')?.remove();
+     document.getElementById('ti-token-style')?.remove();
+     true`,
+  );
+
+  const stateCenter = await rectOf('state');
+  const clicksBeforePin = await evaluate(rx.sessionId, 'window.__respawnClicks');
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: stateCenter.x, y: stateCenter.y, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: stateCenter.x, y: stateCenter.y, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  const pinnedCount = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const count = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.ti-card--pinned').length ?? 0;
       return count > 0 ? count : null;
     })()`,
     3000,
   ).catch(() => 0);
-  check('inspector: Type annotates visible text blocks', chips > 0, chips);
+  check('inspector: Typography click pins a card', pinnedCount === 1, pinnedCount);
+  check(
+    'inspector: Typography click does not reach the page',
+    (await evaluate(rx.sessionId, 'window.__respawnClicks')) === clicksBeforePin,
+    await evaluate(rx.sessionId, 'window.__respawnClicks'),
+  );
+
+  // A second pin, then pin undo/redo.
+  const routeCenter = await rectOf('route');
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mousePressed', x: routeCenter.x, y: routeCenter.y, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  await send(
+    'Input.dispatchMouseEvent',
+    { type: 'mouseReleased', x: routeCenter.x, y: routeCenter.y, button: 'left', clickCount: 1 },
+    rx.sessionId,
+  );
+  const twoPins = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const count = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.ti-card--pinned').length ?? 0;
+      return count === 2 ? count : null;
+    })()`,
+    3000,
+  ).catch(() => 0);
+  check('inspector: Typography pins several cards', twoPins === 2, twoPins);
+
+  await key(rx.sessionId, 'KeyZ', 'z', 2);
+  const afterUndo = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const count = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.ti-card--pinned').length ?? 0;
+      return count === 1 ? count : null;
+    })()`,
+    2000,
+  ).catch(() => 0);
+  check('inspector: Ctrl+Z undoes the last Typography pin', afterUndo === 1, afterUndo);
+
+  await key(rx.sessionId, 'KeyZ', 'z', 10);
+  const afterRedo = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const count = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.ti-card--pinned').length ?? 0;
+      return count === 2 ? count : null;
+    })()`,
+    2000,
+  ).catch(() => 0);
+  check('inspector: Ctrl+Shift+Z redoes the Typography pin', afterRedo === 2, afterRedo);
+
+  // Drag the topmost pinned card (cards can overlap when their elements do).
+  const dragStart = await evaluate(
+    rx.sessionId,
+    `(() => {
+      const cards = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.ti-card--pinned') ?? [];
+      const card = cards[cards.length - 1];
+      if (!card) return null;
+      const r = card.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + 6, left: parseFloat(card.style.left) };
+    })()`,
+  ).catch(() => null);
+  if (dragStart) {
+    await send(
+      'Input.dispatchMouseEvent',
+      { type: 'mousePressed', x: dragStart.x, y: dragStart.y, button: 'left', clickCount: 1 },
+      rx.sessionId,
+    );
+    await send(
+      'Input.dispatchMouseEvent',
+      { type: 'mouseMoved', x: dragStart.x + 40, y: dragStart.y + 24, button: 'left', buttons: 1 },
+      rx.sessionId,
+    );
+    await send(
+      'Input.dispatchMouseEvent',
+      { type: 'mouseReleased', x: dragStart.x + 40, y: dragStart.y + 24, button: 'left', clickCount: 1 },
+      rx.sessionId,
+    );
+  }
+  const draggedLeft = await evaluate(
+    rx.sessionId,
+    `(() => {
+      const cards = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.ti-card--pinned') ?? [];
+      const card = cards[cards.length - 1];
+      return card ? parseFloat(card.style.left) : null;
+    })()`,
+  ).catch(() => null);
+  check(
+    'inspector: Typography cards are draggable',
+    !!dragStart && typeof draggedLeft === 'number' && draggedLeft > dragStart.left + 20,
+    { start: dragStart?.left, end: draggedLeft },
+  );
+
+  // Close the topmost card.
+  const closePoint = await evaluate(
+    rx.sessionId,
+    `(() => {
+      const cards = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.ti-card--pinned') ?? [];
+      const close = cards[cards.length - 1]?.querySelector('.ti-close');
+      if (!close) return null;
+      const r = close.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`,
+  ).catch(() => null);
+  if (closePoint) {
+    await send(
+      'Input.dispatchMouseEvent',
+      { type: 'mousePressed', x: closePoint.x, y: closePoint.y, button: 'left', clickCount: 1 },
+      rx.sessionId,
+    );
+    await send(
+      'Input.dispatchMouseEvent',
+      { type: 'mouseReleased', x: closePoint.x, y: closePoint.y, button: 'left', clickCount: 1 },
+      rx.sessionId,
+    );
+  }
+  const afterClose = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const count = document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelectorAll('.ti-card--pinned').length ?? 0;
+      return count === 1 ? count : null;
+    })()`,
+    2000,
+  ).catch(() => 0);
+  check('inspector: Typography cards close', afterClose === 1, afterClose);
+
+  // Opening the palette pauses hover but keeps pins.
   await key(rx.sessionId, 'KeyP', 'p', 1);
   await waitFor(
     rx.sessionId,
     `!!document.getElementById('respawn-palette-host')?.shadowRoot`,
     3000,
   );
-  await focusTool('type');
-  await pressNamed(rx.sessionId, 'Enter');
+  const paused = await evaluate(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-inspector-host')?.shadowRoot;
+      return {
+        pins: root?.querySelectorAll('.ti-card--pinned').length ?? 0,
+        hoverVisible: root?.querySelector('.ti-card:not(.ti-card--pinned)')?.dataset.state === 'visible',
+      };
+    })()`,
+  ).catch(() => null);
+  check(
+    'inspector: Typography pauses with the palette and keeps pins',
+    paused?.pins === 1 && paused.hoverVisible === false,
+    paused,
+  );
   await pressNamed(rx.sessionId, 'Escape');
+  await waitFor(
+    rx.sessionId,
+    `!document.getElementById('respawn-palette-host')`,
+    3000,
+  );
+
+  // First Escape clears pins and keeps the mode; the second leaves it.
+  await pressNamed(rx.sessionId, 'Escape');
+  const pinsCleared = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-inspector-host')?.shadowRoot;
+      return root?.querySelectorAll('.ti-card--pinned').length === 0 ? true : null;
+    })()`,
+    2000,
+  ).catch(() => false);
+  check('inspector: Escape clears Typography pins first', pinsCleared, null);
+
+  const stillActive = await hoverTypography();
+  check(
+    'inspector: Escape keeps Typography mode active',
+    !!stillActive,
+    stillActive,
+  );
+
+  await pressNamed(rx.sessionId, 'Escape');
+  const modeOff = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-inspector-host')?.shadowRoot;
+      return !root?.querySelector('.ti-card[data-state="visible"]') &&
+        !root?.querySelector('.ti-box[data-state="visible"]');
+    })()`,
+    2000,
+  ).catch(() => false);
+  check('inspector: second Escape leaves Typography mode', modeOff, null);
+  check(
+    'inspector: Typography restores the page cursor',
+    (await evaluate(rx.sessionId, 'document.documentElement.style.cursor')) === '',
+    await evaluate(rx.sessionId, 'document.documentElement.style.cursor'),
+  );
+
+  // `A` toggles the mode without opening the palette.
+  await key(rx.sessionId, 'KeyA', 'a', 0);
+  const aActive = await hoverTypography();
+  check('inspector: A toggles Typography mode', !!aActive, aActive);
+  await key(rx.sessionId, 'KeyA', 'a', 0);
+  const aOff = await waitFor(
+    rx.sessionId,
+    `(() => {
+      const root = document.getElementById('respawn-inspector-host')?.shadowRoot;
+      return !root?.querySelector('.ti-card[data-state="visible"]') &&
+        !root?.querySelector('.ti-box[data-state="visible"]');
+    })()`,
+    2000,
+  ).catch(() => false);
+  check('inspector: A leaves Typography mode', aOff, null);
+
+  // The bare `A` must not fire while a text field has focus.
+  await evaluate(
+    rx.sessionId,
+    `(() => {
+      const input = document.createElement('input');
+      input.id = 'ti-field';
+      document.body.prepend(input);
+      input.focus();
+      return document.activeElement.id;
+    })()`,
+  );
+  await key(rx.sessionId, 'KeyA', 'a', 0);
+  const inputGuard = await evaluate(
+    rx.sessionId,
+    `({
+      active: document.activeElement?.id,
+      visible: !!document.getElementById('respawn-inspector-host')?.shadowRoot?.querySelector('.ti-card[data-state="visible"]'),
+    })`,
+  );
+  check(
+    'inspector: A stays out of text fields',
+    inputGuard.active === 'ti-field' && !inputGuard.visible,
+    inputGuard,
+  );
+  await evaluate(
+    rx.sessionId,
+    `document.getElementById('ti-field')?.remove();
+     document.activeElement?.blur();
+     true`,
+  );
 
   await mappingCheck(ext, bg);
 

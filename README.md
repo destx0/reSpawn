@@ -27,6 +27,7 @@ Checkpoints work with any app that connects to Redux DevTools: NgRx (`provideSto
 | Palette                        | `Alt+E`                          | Export the highlighted checkpoint                                                                                                                                                                                                                                                                               |
 | Palette                        | Upload icon                      | Import a checkpoint JSON file                                                                                                                                                                                                                                                                                   |
 | Page                           | `Alt+I`                          | Toggle **inspect mode**: hover an element to measure it, click to pin the selection (see [Element inspector](#element-inspector))                                                                                                                                                                                |
+| Page                           | `A`                              | Toggle **typography mode**: hover text for a compact computed-style card, click to pin it (see [Element inspector](#element-inspector))                                                                                                                                                                         |
 | DevTools → **Checkpoints** tab | Toolbar & row icons              | Save (+), import, and the globe toggle for other sites' checkpoints. The search box also takes a route (`Enter` goes there). Hover a row to restore, go, rename, export or delete; double-click restores. A checkpoint from another site (e.g. localhost vs. staging) restores on the current site at its route |
 
 Notes:
@@ -44,20 +45,23 @@ The extension also carries the measuring tools from `inspector-ng`, with no libr
 | Where  | How                             | What happens                                                                                                                                        |
 | ------ | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Page   | `Alt+I`                         | Toggle inspect mode. While it is on, clicks select elements instead of reaching the app                                                             |
+| Page   | `A`                             | Toggle **typography mode**: hover text for a small computed-style card, click to pin it. Ignored while typing in a field                             |
 | Page   | Hover                           | Highlight the element under the pointer                                                                                                             |
 | Page   | Click                           | Pin the selection: margin, border, padding and content boxes, the element label, its size, font size, line height and colour, and `M`/`P` spacing    |
 | Page   | Hold `Alt`                      | Measure the distance between the pinned element and the one under the pointer, including all four sides when one contains the other                  |
 | Page   | `Ctrl`/`Cmd` + click            | Select the minimum common parent of the pinned element and the one you click                                                                        |
-| Page   | `Esc`                           | Clear the selection and guides, and leave inspect mode                                                                                              |
+| Page   | `Esc`                           | Clear the selection and guides, and leave inspect mode. In typography mode the first `Esc` only clears pinned cards                                  |
 | Palette | **Inspect** button (`Alt+P`)    | Same as `Alt+I`                                                                                                                                     |
-| Palette | **Type** button                  | Annotate every visible text block with a colour swatch, font size, line height and hex colour                                                        |
+| Palette | **Typography** button           | Hover text to inspect family, size, weight, line height, tracking and the CSS variable behind each value. Click to pin a card; drag cards to move them, `Ctrl`/`Cmd` + `Z` to undo pins |
 | Palette | **Vertical / Horizontal** buttons | Place alignment guides: move the pointer for a preview, click to place, drag a guide to move it. Guides snap within 10px and show the gap between them |
 
 Notes:
 
 - Inspect mode takes over pointer events like DevTools' own element picker, so pressing a button while inspecting does not activate it. `Esc` or `Alt+I` leaves the mode and the page behaves normally again.
+- Typography cards are deliberately small: five rows plus an optional `var(--token)`, with no header or text snippet. Pinned cards survive opening the palette; hover inspection pauses until it closes.
+- Typography mode ignores the bare `A` while an input, textarea, select or contenteditable has focus, and never handles `Ctrl`/`Cmd` + `A`. `Ctrl`/`Cmd` + `Z` undoes typography pins before the page sees it.
 - The overlay is drawn in a shadow root, so page CSS cannot reach it. Nothing is written to the page's DOM except one host element (`#respawn-inspector-host`).
-- Guides and measurements live in memory for the current page; they are not saved.
+- Guides and measurements live in memory for the current page; they are not saved. Typography pins are cleared when the mode ends.
 - The inspector works on pages without a store. `Alt+S` / `Alt+P` still require a connected store.
 - Pages that ship the `inspector-ng` Angular overlay (`<inspector-overlay>`) keep their own overlay; the extension's inspector stands down to avoid drawing twice.
 

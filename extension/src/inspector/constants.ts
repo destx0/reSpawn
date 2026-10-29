@@ -8,8 +8,6 @@ export const GUIDE_SNAP_DISTANCE = 10;
 export const GUIDE_HITBOX_SIZE = 14;
 /** Rects smaller than this are not worth selecting. */
 export const MIN_TARGET_SIZE = 2;
-/** Cap for the typography overlay; scanning every leaf text node is expensive. */
-export const TEXT_BLOCK_LIMIT = 160;
 
 export const OVERLAY_HOST_ID = 'respawn-inspector-host';
 

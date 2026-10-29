@@ -218,7 +218,7 @@ Modified files:
 | --- | --- |
 | `extension/src/contentScript/index.ts:343` | call `initInspector()` next to `initCheckpoints()` |
 | `extension/src/contentScript/checkpoints/index.ts:82-98` | route `Alt+I` to the inspector; keep `Alt+S`/`Alt+P` |
-| `extension/src/contentScript/checkpoints/palette.ts` | add `tool` rows (Inspect / Type / V / H) in `computeItems()` |
+| `extension/src/contentScript/checkpoints/palette.ts` | add the tool bar (Inspect / Typography / V / H) below the list |
 | `extension/src/options/syncOptions.ts` | add `inspectorEnabled`, `hoverHighlightEnabled`, `highlightColor`, `guideColor` |
 | `extension/src/options/*Group.tsx` | UI for the four options |
 | `extension/test/checkpoints-e2e/run.mjs` | 10 inspector assertions in the existing CDP harness |
@@ -298,6 +298,9 @@ crowd the checkpoint results). The bar won.
       formatting, colour normalisation, measurement, distances (separated,
       diagonal, nested, overlapping), snapping, guide distances and the common
       parent.
+- [x] `test/app/inspector/typography.spec.js`: direct-text detection, the five
+      computed values, variable resolution, rule specificity and late
+      stylesheets.
 - [x] Gate: `pnpm --filter respawn-extension type-check`, lint and `test:app`
       pass.
 
@@ -318,9 +321,9 @@ crowd the checkpoint results). The bar won.
 - [x] `Alt` hold → distance layer (rects, connectors, axis tags, nested sides).
 - [x] Guide mode: preview, place, drag, snap (10px), hitbox (14px), adjacent
       distance labels, clear.
-- [x] Typography: visible text blocks, chips, viewport clamp, debounced refresh.
-- [x] Palette tool bar: Inspect / Type / Vertical / Horizontal buttons.
-- [x] Gate: e2e covers distances, guide placement and typography.
+- [x] Typography: hover card + pinned cards (Mesurer engine), minimal dark card, CSS variable tokens, drag, undo/redo.
+- [x] Palette tool bar: Inspect / Typography / Vertical / Horizontal buttons.
+- [x] Gate: e2e covers distances, guide placement and the typography hover/pin flow.
 
 ### Phase 4 — settings + persistence — **not done (out of scope)**
 
@@ -334,11 +337,11 @@ Skipped per the decision to ship the page overlay only.
 
 ### Phase 6 — e2e + docs — **done**
 
-- [x] `test/checkpoints-e2e/run.mjs` gained 10 inspector checks: host, hover,
+- [x] `test/checkpoints-e2e/run.mjs` gained the inspector checks: host, hover,
       selection, swallowed clicks, `Alt` distances, `Esc`, clicks after `Esc`,
-      palette tool rows, guide placement, typography.
+      palette tool bar, guide placement, and the typography hover/pin flow.
 - [x] README: new "Element inspector" section and updated shortcut table.
-- [x] Gate: `build:extension` and the e2e suite (58/58) pass.
+- [x] Gate: `build:extension` and the e2e suite (75/75) pass.
 
 ---
 
@@ -381,7 +384,7 @@ pnpm --filter respawn-extension type-check
 pnpm --filter respawn-extension lint
 pnpm --filter respawn-extension build:extension
 pnpm --filter respawn-extension test:app
-node test/checkpoints-e2e/run.mjs      # 58/58, includes 10 inspector checks
+node test/checkpoints-e2e/run.mjs      # 75/75, includes the inspector checks
 ```
 
 Manual, on `test/checkpoints-e2e/fixtures/redux` and the NgRx fixture:
@@ -392,7 +395,8 @@ Manual, on `test/checkpoints-e2e/fixtures/redux` and the NgRx fixture:
    → four-side distances.
 4. Palette → Vertical/Horizontal guides: preview follows the cursor, click
    places, drag moves, snapping at ≤ 10px, adjacent labels update, `Esc` clears.
-5. Palette → Type shows chips with swatch + font-size + line-height + hex colour.
+5. Palette → Typography: hover text for a compact card, click to pin, drag/close
+   cards, first `Esc` clears pins and the second leaves the mode.
 6. `Ctrl/Cmd+click` selects the common parent.
 7. `Alt+P` palette still restores/navigates; the tool rows work.
 8. No console errors on a page without a store.
@@ -414,5 +418,43 @@ Manual, on `test/checkpoints-e2e/fixtures/redux` and the NgRx fixture:
 
 ---
 
+## 11. Follow-up — Typography hover inspector (Mesurer)
+
+> Status: implemented 2026-10-29. The inspector-ng "Type" chips were replaced
+> by Mesurer's hover/pin inspector, restyled to match reSpawn's compact labels.
+
+Source: `/home/omu/cud/mesurer` at `a3bef16`, runtime files
+`text-inspector.ts`, `text-inspector-dom.ts`, `text-inspector-typography.ts`.
+Only the framework-agnostic engine was reused; the React hook/toolbar wiring was
+adapted to the palette tool bar.
+
+| Piece | File | Notes |
+| --- | --- | --- |
+| Computed values + CSS variable resolution | `extension/src/inspector/typography.ts` | port of `text-inspector-typography.ts`; five rows, stylesheet scan cached |
+| Hover/pinned cards, drag, history | `extension/src/inspector/typography-layer.ts` | cards in the inspector shadow root; compact dark card |
+| Mode wiring | `extension/src/inspector/overlay.ts` | `ToolMode` gains `typography`; pointer/click/Esc/undo routing |
+| Tool bar | `extension/src/contentScript/checkpoints/palette.ts` | Typography button (`Aa`, `A`), `aria-pressed` |
+| Styles | `extension/src/inspector/styles.ts` | `.ti-box`, `.ti-card`, `.ti-rows` |
+
+Behaviour:
+
+- `A` (no modifiers, outside text fields) toggles the mode; the palette button
+  toggles it too and exposes `aria-pressed`.
+- Hover shows five rows (Family, Size, Weight, Line height, Tracking) and
+  `var(--token)` when a custom property drives the value.
+- Click pins; pins coexist, drag, close, and are restored by `Ctrl`/`Cmd` + `Z`
+  / `Ctrl`/`Cmd` + `Shift` + `Z` while the mode is active.
+- First `Esc` clears pins and keeps the mode; the next `Esc` leaves it.
+- Opening the palette pauses hover (pins stay).
+- Leaving the mode removes cards, outlines, history and the cursor override.
+
+Deviation from Mesurer: the card is a compact dark tooltip (max 260px, 10px
+type, no header/snippet) instead of the 320px white card, to stay out of the
+way. The old "Type" chip overlay was removed rather than kept beside it: two
+typography tools with different mental models was worse than one.
+
+---
+
 *Written 2026-10-28 against `inspector-ng` at `projects/inspector-ng/src/lib`
-and reSpawn at commit on `main`; implementation notes added the same day.*
+and reSpawn at commit on `main`; implementation notes added the same day.
+Typography follow-up added 2026-10-29 against Mesurer `a3bef16`.*

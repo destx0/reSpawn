@@ -191,4 +191,89 @@ export const OVERLAY_STYLE = `
   top: 50%;
   transform: translate(-50%, -50%);
 }
+
+/* Typography: a small dark card that matches the measurement labels. */
+.ti-box {
+  position: fixed;
+  pointer-events: none;
+  border: 1px solid rgb(37 99 235 / 0.5);
+  background: rgb(37 99 235 / 0.04);
+}
+.ti-box--pinned {
+  border-color: rgb(37 99 235 / 0.32);
+  background: transparent;
+}
+.ti-card {
+  position: fixed;
+  z-index: 2;
+  pointer-events: none;
+  max-width: 260px;
+  padding: 6px 8px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 7px;
+  background: rgb(24 24 27 / 0.94);
+  color: var(--label-fg);
+  font: 10px/1.35 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.22);
+  opacity: 1;
+  transition: opacity 80ms ease;
+}
+.ti-card[data-state='hidden'] {
+  opacity: 0;
+}
+.ti-card--pinned {
+  pointer-events: auto;
+  padding-right: 16px;
+  border-left: 2px solid var(--accent);
+  cursor: grab;
+  touch-action: none;
+}
+.ti-card--pinned:active {
+  cursor: grabbing;
+}
+.ti-rows {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 1px;
+  align-items: baseline;
+}
+.ti-label {
+  color: var(--label-muted);
+  font-size: 9.5px;
+}
+.ti-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+}
+.ti-var {
+  color: #93c5fd;
+}
+.ti-sep {
+  color: #71717a;
+}
+.ti-close {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--label-muted);
+  font: 12px/12px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  text-align: center;
+  cursor: pointer;
+}
+.ti-close:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--label-fg);
+}
 `;

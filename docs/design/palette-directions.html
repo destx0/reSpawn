@@ -1,0 +1,3385 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>reSpawn · palette directions</title>
+    <style>
+      :root {
+        --lab-accent: #f5b942;
+        --lab-accent-soft: rgba(245, 185, 66, 0.12);
+        --lab-danger: #ef6b73;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+      }
+
+      body {
+        font-family:
+          ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      svg {
+        display: block;
+        flex: none;
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-variant-ligatures: none;
+      }
+
+      /* ---------- Lab chrome ---------- */
+
+      .lab {
+        width: 100%;
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 2px 4px 10px 0;
+      }
+
+      .toolbar-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 140px;
+      }
+
+      .kicker {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted-foreground, #8b94a3);
+      }
+
+      .toolbar-sub {
+        font-size: 11px;
+        color: var(--muted-foreground, #8b94a3);
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .segment {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px;
+        gap: 2px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 7px;
+        background: var(--secondary, rgba(127, 127, 127, 0.08));
+      }
+
+      .segment button {
+        border: 0;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+        line-height: 1;
+        padding: 5px 7px;
+        border-radius: 5px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .segment button:hover {
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .segment button.on {
+        background: var(--background, #0f1115);
+        color: var(--foreground, #e8ebf1);
+        box-shadow: 0 0 0 1px var(--border, #313846);
+      }
+
+      .tool-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 8px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .tool-btn svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      .tool-btn:hover {
+        color: var(--foreground, #e8ebf1);
+        border-color: var(--muted-foreground, #8b94a3);
+      }
+
+      .tool-btn.on {
+        color: #1b1609;
+        background: var(--lab-accent);
+        border-color: var(--lab-accent);
+      }
+
+      .tool-btn.primary {
+        color: var(--primary-foreground, #08131f);
+        background: var(--primary, #7cc4e8);
+        border-color: transparent;
+      }
+
+      .tool-btn kbd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 9px;
+        line-height: 1;
+        padding: 2px 3px;
+        border-radius: 3px;
+        border: 1px solid currentColor;
+        opacity: 0.55;
+      }
+
+      .count {
+        display: inline-grid;
+        place-items: center;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 7px;
+        background: currentColor;
+        color: var(--background, #0f1115);
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .tool-btn.on .count {
+        background: rgba(0, 0, 0, 0.22);
+        color: inherit;
+      }
+
+      .lab-hint {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0 0 16px;
+        font-size: 10.5px;
+        color: var(--muted-foreground, #8b94a3);
+      }
+
+      .lab-hint strong {
+        color: var(--foreground, #e8ebf1);
+        font-weight: 600;
+      }
+
+      .jump {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: auto;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 9px;
+      }
+
+      .jump button {
+        display: grid;
+        place-items: center;
+        width: 19px;
+        height: 19px;
+        padding: 0;
+        border: 1px solid var(--border, #313846);
+        border-radius: 5px;
+        background: transparent;
+        color: var(--foreground, #e8ebf1);
+        font-size: 9px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .jump button:hover {
+        border-color: var(--lab-accent);
+        color: var(--lab-accent);
+      }
+
+      .gallery {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 22px;
+        align-items: start;
+      }
+
+      .card {
+        min-width: 0;
+        scroll-margin-top: 12px;
+        transition: box-shadow 120ms;
+      }
+
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 0 2px 8px;
+      }
+
+      .letter {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 22px;
+        height: 22px;
+        margin-top: 1px;
+        border-radius: 6px;
+        background: var(--lab-accent-soft);
+        color: var(--lab-accent);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .card-title {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .card-title h2 {
+        margin: 0;
+        font-size: 12.5px;
+        line-height: 1.25;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+
+      .card-title p {
+        margin: 2px 0 0;
+        font-size: 10px;
+        line-height: 1.35;
+        color: var(--muted-foreground, #8b94a3);
+      }
+
+      .card-tools {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        flex: none;
+      }
+
+      .mini {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        cursor: pointer;
+      }
+
+      .mini svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .mini:hover {
+        color: var(--foreground, #e8ebf1);
+        background: var(--secondary, rgba(127, 127, 127, 0.1));
+      }
+
+      .mini.star.on {
+        color: var(--lab-accent);
+      }
+
+      .mini.star.on svg {
+        fill: currentColor;
+      }
+
+      .stage {
+        position: relative;
+        height: 350px;
+        overflow: hidden;
+        border: 1px solid var(--border, #313846);
+        border-radius: 14px;
+        background: #e8edf4;
+        transition:
+          border-color 120ms,
+          box-shadow 120ms;
+      }
+
+      .card:hover .stage {
+        border-color: color-mix(
+          in srgb,
+          var(--border, #313846) 55%,
+          var(--foreground, #e8ebf1)
+        );
+      }
+
+      .card.is-picked .stage {
+        border-color: var(--lab-accent);
+        box-shadow:
+          0 0 0 1px var(--lab-accent),
+          0 12px 34px rgba(0, 0, 0, 0.18);
+      }
+
+      .page-slot,
+      .scrim {
+        position: absolute;
+        inset: 0;
+      }
+
+      .scrim {
+        background: rgba(7, 10, 15, 0.58);
+        backdrop-filter: blur(1.4px);
+      }
+
+      .card-foot {
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
+        padding: 7px 2px 0;
+        font-size: 9.5px;
+        color: var(--muted-foreground, #8b94a3);
+      }
+
+      .tag {
+        flex: none;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: var(--secondary, rgba(127, 127, 127, 0.1));
+        color: var(--foreground, #e8ebf1);
+        font-size: 8.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .lab-foot {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 24px;
+        margin-top: 22px;
+        padding: 12px 0 4px;
+        border-top: 1px solid var(--border, #313846);
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 9.5px;
+        line-height: 1.5;
+      }
+
+      .lab-foot strong {
+        color: var(--foreground, #e8ebf1);
+        font-weight: 600;
+      }
+
+      /* ---------- Page mock ---------- */
+
+      .page {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background: #f8fafc;
+        color: #334155;
+        font-family:
+          ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        pointer-events: none;
+      }
+
+      .pnav {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: 32px;
+        padding: 0 14px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #ffffff;
+      }
+
+      .pbrand {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #0f172a;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .plogo {
+        display: grid;
+        place-items: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        background: #0f172a;
+        color: #ffffff;
+        font-size: 8px;
+        font-weight: 700;
+      }
+
+      .plinks {
+        display: flex;
+        gap: 12px;
+        color: #64748b;
+        font-size: 8.5px;
+      }
+
+      .pcart {
+        margin-left: auto;
+        padding: 3px 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        color: #334155;
+        font-size: 8px;
+      }
+
+      .pbody {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 20px;
+        padding: 20px 24px;
+      }
+
+      .pkicker {
+        color: #64748b;
+        font-size: 7.5px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .ptitle {
+        margin-top: 2px;
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .psteps {
+        display: flex;
+        gap: 5px;
+        margin: 8px 0 11px;
+      }
+
+      .psteps span {
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #eef2f6;
+        color: #64748b;
+        font-size: 7.5px;
+      }
+
+      .psteps span.on {
+        background: #e0f2fe;
+        color: #0369a1;
+      }
+
+      .pform {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+        max-width: 290px;
+      }
+
+      .pfield {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .pfield.wide {
+        grid-column: 1 / -1;
+      }
+
+      .pfield > span {
+        color: #64748b;
+        font-size: 7.5px;
+      }
+
+      .pfield > div {
+        padding: 6px 7px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        background: #ffffff;
+        color: #334155;
+        font-size: 8.5px;
+      }
+
+      .pbtn {
+        grid-column: 1 / -1;
+        margin-top: 2px;
+        padding: 7px;
+        border-radius: 4px;
+        background: #0f172a;
+        color: #ffffff;
+        font-size: 8.5px;
+        font-weight: 600;
+        text-align: center;
+      }
+
+      .psum {
+        align-self: start;
+        padding: 11px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        background: #ffffff;
+      }
+
+      .psum-title {
+        margin-bottom: 6px;
+        color: #0f172a;
+        font-size: 9px;
+        font-weight: 600;
+      }
+
+      .pitem {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 0;
+        border-bottom: 1px solid #f1f5f9;
+      }
+
+      .pthumb {
+        flex: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, #fde68a, #fb923c);
+      }
+
+      .pitem-main {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+
+      .pitem-main b {
+        color: #0f172a;
+        font-size: 8.5px;
+        font-weight: 600;
+      }
+
+      .pitem-main span {
+        color: #64748b;
+        font-size: 7.5px;
+      }
+
+      .pitem > span {
+        color: #0f172a;
+        font-size: 8.5px;
+      }
+
+      .pline {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 5px;
+        color: #64748b;
+        font-size: 8px;
+      }
+
+      .ptotal {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 7px;
+        padding-top: 7px;
+        border-top: 1px solid #e2e8f0;
+        color: #0f172a;
+        font-size: 9px;
+        font-weight: 600;
+      }
+
+      /* ---------- Palette base ---------- */
+
+      .palette {
+        --pal-bg: #15181e;
+        --pal-bg2: #1a1e26;
+        --pal-surface: #222833;
+        --pal-border: #2d3542;
+        --pal-text: #e7ebf2;
+        --pal-strong: #f7f9fc;
+        --pal-muted: #9aa4b2;
+        --pal-faint: #6f7a8a;
+        --pal-accent: #7cc4e8;
+        --pal-accent-2: #a3dcf5;
+        --pal-accent-soft: rgba(124, 196, 232, 0.13);
+        --pal-green: #a1c659;
+        --pal-danger: #fb9fb1;
+        --pal-amber: #ddb26f;
+        --pal-hover: rgba(255, 255, 255, 0.055);
+        --pal-shadow:
+          0 24px 70px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+
+        position: absolute;
+        top: 16px;
+        left: 50%;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        width: min(560px, calc(100% - 28px));
+        height: 318px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 12px;
+        background: var(--pal-bg);
+        color: var(--pal-text);
+        box-shadow: var(--pal-shadow);
+        font: 12px/1.35 ui-sans-serif, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        transform: translateX(-50%);
+        container-type: inline-size;
+      }
+
+      body[data-palette-theme="light"] .palette {
+        --pal-bg: #ffffff;
+        --pal-bg2: #f7f8fa;
+        --pal-surface: #f0f2f5;
+        --pal-border: #e2e6ec;
+        --pal-text: #28303b;
+        --pal-strong: #111827;
+        --pal-muted: #5b6472;
+        --pal-faint: #8a94a3;
+        --pal-accent: #0b6bcb;
+        --pal-accent-2: #0857a6;
+        --pal-accent-soft: rgba(11, 107, 203, 0.08);
+        --pal-green: #237a35;
+        --pal-danger: #c0262d;
+        --pal-amber: #9a5b00;
+        --pal-hover: rgba(0, 0, 0, 0.04);
+        --pal-shadow:
+          0 24px 70px rgba(15, 23, 42, 0.28),
+          0 2px 8px rgba(15, 23, 42, 0.12);
+
+        border-color: rgba(0, 0, 0, 0.08);
+      }
+
+      body[data-density="compact"] .palette {
+        height: 290px;
+        font-size: 11px;
+      }
+
+      body[data-density="compact"] .psearch {
+        height: 38px;
+      }
+
+      body[data-density="compact"] .prow {
+        min-height: 29px !important;
+        padding-top: 1px;
+        padding-bottom: 1px;
+      }
+
+      body[data-density="compact"] .prow-title {
+        font-size: 10.5px;
+      }
+
+      body[data-density="compact"] .prow-sub {
+        font-size: 8.5px;
+      }
+
+      body[data-density="compact"] .pfoot {
+        height: 24px;
+      }
+
+      body[data-density="compact"] .ptools {
+        height: 32px;
+      }
+
+      body[data-density="compact"] .mode {
+        height: 22px;
+      }
+
+      body[data-density="compact"] .tool-card {
+        min-height: 68px;
+        padding: 6px 7px;
+      }
+
+      .pico {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .psearch {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex: none;
+        height: 42px;
+        padding: 0 8px 0 12px;
+        border-bottom: 1px solid var(--pal-border);
+        color: var(--pal-faint);
+      }
+
+      .psearch:focus-within {
+        color: var(--pal-accent);
+      }
+
+      .psearch input {
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--pal-text);
+        font-size: 13px;
+      }
+
+      .psearch input::placeholder {
+        color: var(--pal-faint);
+      }
+
+      .pscope {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex: none;
+        height: 24px;
+        padding: 0 6px;
+        border: 1px solid var(--pal-border);
+        border-radius: 5px;
+        background: transparent;
+        color: var(--pal-muted);
+        font-size: 9.5px;
+        cursor: pointer;
+      }
+
+      .pscope .pico {
+        width: 11px;
+        height: 11px;
+      }
+
+      .pscope:hover,
+      .pscope.on {
+        color: var(--pal-accent);
+        border-color: var(--pal-accent);
+      }
+
+      .pbadge {
+        display: inline-grid;
+        place-items: center;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 7px;
+        background: var(--pal-surface);
+        color: var(--pal-strong);
+        font-size: 8px;
+        font-weight: 700;
+      }
+
+      .pscope.on .pbadge {
+        display: none;
+      }
+
+      .plist {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 3px 3px 4px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--pal-border) transparent;
+      }
+
+      .psection {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 16px;
+        padding: 0 9px;
+        color: var(--pal-faint);
+        font-size: 8px;
+        font-weight: 650;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .psection i {
+        flex: 1;
+        height: 1px;
+        background: var(--pal-border);
+        opacity: 0.6;
+      }
+
+      .psection b {
+        font-size: 8px;
+        font-weight: 500;
+        letter-spacing: 0;
+      }
+
+      .prow {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        margin: 0 1px;
+        padding: 2px 5px 2px 8px;
+        border-radius: 6px;
+        cursor: default;
+      }
+
+      .prow:hover {
+        background: var(--pal-hover);
+      }
+
+      .prow.on {
+        background: var(--pal-accent-soft);
+        box-shadow: inset 2px 0 0 var(--pal-accent);
+      }
+
+      .prow-ico {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 18px;
+        height: 18px;
+        color: var(--pal-faint);
+      }
+
+      .prow.on .prow-ico {
+        color: var(--pal-accent);
+      }
+
+      .prow-main {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .prow-title {
+        overflow: hidden;
+        color: var(--pal-strong);
+        font-size: 11.5px;
+        font-weight: 550;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .prow-title.mono {
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .prow-sub {
+        overflow: hidden;
+        color: var(--pal-faint);
+        font-size: 9px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .prow-sub .mono {
+        color: var(--pal-muted);
+      }
+
+      .prow-sub .host {
+        color: var(--pal-amber);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .pmeta {
+        flex: none;
+        margin-left: auto;
+        color: var(--pal-faint);
+        font-size: 8.5px;
+      }
+
+      .pkeys {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        flex: none;
+        color: var(--pal-faint);
+      }
+
+      .pkeys kbd,
+      .pfoot kbd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 8px;
+        line-height: 1;
+        padding: 2px 3px;
+        border: 1px solid var(--pal-border);
+        border-radius: 3px;
+      }
+
+      .prow-more {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--pal-faint);
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .prow:hover .prow-more,
+      .prow.on .prow-more {
+        opacity: 1;
+      }
+
+      .prow-more:hover {
+        background: var(--pal-hover);
+        color: var(--pal-strong);
+      }
+
+      .prow.add .prow-ico,
+      .prow.add .prow-title {
+        color: var(--pal-accent);
+      }
+
+      .prow.add .prow-title {
+        font-weight: 600;
+      }
+
+      [data-other] {
+        display: none !important;
+      }
+
+      .show-all .prow[data-other] {
+        display: flex !important;
+      }
+
+      .pfoot {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex: none;
+        height: 26px;
+        padding: 0 10px;
+        border-top: 1px solid var(--pal-border);
+        color: var(--pal-faint);
+        font-size: 8.5px;
+        white-space: nowrap;
+      }
+
+      .pfoot .fill {
+        flex: 1;
+      }
+
+      .pfoot span {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+      }
+
+      .pins {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        pointer-events: none;
+      }
+
+      .pin {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        width: 17px;
+        height: 17px;
+        margin: -8.5px 0 0 -8.5px;
+        border: 2px solid var(--pal-bg);
+        border-radius: 50%;
+        background: var(--lab-accent);
+        color: #1d1708;
+        font-size: 9px;
+        font-weight: 800;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      .ptoast {
+        position: absolute;
+        bottom: 64px;
+        left: 50%;
+        z-index: 15;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        max-width: calc(100% - 24px);
+        padding: 5px 8px;
+        border: 1px solid var(--pal-border);
+        border-radius: 6px;
+        background: var(--pal-surface);
+        color: var(--pal-strong);
+        font-size: 9.5px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+
+      .ptoast .pico {
+        width: 12px;
+        height: 12px;
+        color: var(--pal-green);
+      }
+
+      /* ---------- A: quick pick ---------- */
+
+      .pal-a .prow {
+        min-height: 34px;
+      }
+
+      .ptools {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        flex: none;
+        height: 36px;
+        padding: 4px 5px;
+        border-top: 1px solid var(--pal-border);
+      }
+
+      .ptools-label {
+        flex: none;
+        width: 30px;
+        padding-left: 4px;
+        color: var(--pal-faint);
+        font-size: 7.5px;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .ptool {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        flex: 1;
+        height: 27px;
+        padding: 0 4px;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--pal-muted);
+        font-size: 8.5px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .ptool .pico {
+        width: 12px;
+        height: 12px;
+      }
+
+      .ptool:hover {
+        background: var(--pal-hover);
+        color: var(--pal-strong);
+      }
+
+      .ptool.on {
+        border-color: var(--pal-border);
+        background: var(--pal-accent-soft);
+        color: var(--pal-accent);
+      }
+
+      .pal-a .ptoast {
+        bottom: 66px;
+      }
+
+      /* ---------- B: split preview ---------- */
+
+      .pal-b {
+        width: min(640px, calc(100% - 28px));
+      }
+
+      .pal-b .pbody {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .pal-b .plist {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .pal-b .prow {
+        min-height: 32px;
+      }
+
+      .preview {
+        display: flex;
+        flex-direction: column;
+        flex: none;
+        width: 264px;
+        min-height: 0;
+        padding: 10px 11px;
+        border-left: 1px solid var(--pal-border);
+        background: var(--pal-bg2);
+      }
+
+      .pv-head {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: var(--pal-faint);
+        font-size: 7.5px;
+        font-weight: 650;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .pv-head .pv-dots {
+        margin-left: auto;
+        color: var(--pal-faint);
+      }
+
+      .pv-title {
+        margin-top: 5px;
+        overflow: hidden;
+        color: var(--pal-strong);
+        font-size: 15px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .pv-route {
+        margin-top: 1px;
+        overflow: hidden;
+        color: var(--pal-muted);
+        font-size: 9.5px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .pv-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        margin-top: 7px;
+      }
+
+      .pv-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 5px;
+        border: 1px solid var(--pal-border);
+        border-radius: 4px;
+        color: var(--pal-muted);
+        font-size: 8px;
+      }
+
+      .pv-chip.accent {
+        border-color: color-mix(in srgb, var(--pal-accent) 45%, transparent);
+        background: var(--pal-accent-soft);
+        color: var(--pal-accent);
+      }
+
+      .pv-section {
+        margin-top: 8px;
+      }
+
+      .pv-label {
+        margin-bottom: 3px;
+        color: var(--pal-faint);
+        font-size: 7.5px;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .pv-target {
+        padding: 6px 7px;
+        border: 1px solid var(--pal-border);
+        border-radius: 5px;
+        background: var(--pal-bg);
+      }
+
+      .pv-host {
+        color: var(--pal-strong);
+        font-size: 9.5px;
+        font-weight: 600;
+      }
+
+      .pv-target .mono {
+        margin-top: 1px;
+        color: var(--pal-muted);
+        font-size: 9px;
+      }
+
+      .pv-map {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 1px solid var(--pal-border);
+        color: var(--pal-accent);
+        font-size: 8px;
+      }
+
+      .pv-map .pico {
+        width: 9px;
+        height: 9px;
+      }
+
+      .pv-actions {
+        margin-top: auto;
+        padding-top: 8px;
+      }
+
+      .pv-primary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        width: 100%;
+        height: 27px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--pal-accent);
+        color: #13212a;
+        font-size: 9.5px;
+        font-weight: 650;
+        cursor: pointer;
+      }
+
+      body[data-palette-theme="light"] .pv-primary {
+        color: #ffffff;
+      }
+
+      .pv-primary:hover {
+        background: var(--pal-accent-2);
+      }
+
+      .pv-secondary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 100%;
+        height: 21px;
+        margin-top: 3px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--pal-muted);
+        font-size: 8.5px;
+        cursor: pointer;
+      }
+
+      .pv-secondary:hover {
+        background: var(--pal-hover);
+        color: var(--pal-strong);
+      }
+
+      .pv-tools {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid var(--pal-border);
+      }
+
+      .pv-tools-label {
+        margin-right: 3px;
+        color: var(--pal-faint);
+        font-size: 7.5px;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .pv-tool {
+        display: grid;
+        place-items: center;
+        width: 25px;
+        height: 22px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--pal-faint);
+        cursor: pointer;
+      }
+
+      .pv-tool .pico {
+        width: 12px;
+        height: 12px;
+      }
+
+      .pv-tool:hover {
+        background: var(--pal-hover);
+        color: var(--pal-strong);
+      }
+
+      .pv-tool.on {
+        color: var(--pal-accent);
+        border-color: var(--pal-border);
+        background: var(--pal-accent-soft);
+      }
+
+      @container (max-width: 560px) {
+        .pal-b .preview {
+          display: none;
+        }
+      }
+
+      /* ---------- C: mode tabs ---------- */
+
+      .modes {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        flex: none;
+        height: 30px;
+        padding: 0 4px;
+        border-bottom: 1px solid var(--pal-border);
+        background: var(--pal-bg2);
+      }
+
+      .mode {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        flex: 1;
+        height: 24px;
+        padding: 0 5px;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--pal-faint);
+        font-size: 9.5px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .mode .pico {
+        width: 12px;
+        height: 12px;
+      }
+
+      .mode:hover {
+        color: var(--pal-strong);
+        background: var(--pal-hover);
+      }
+
+      .mode.on {
+        border-color: var(--pal-border);
+        background: var(--pal-bg);
+        color: var(--pal-strong);
+        box-shadow: 0 -2px 0 var(--pal-accent) inset;
+      }
+
+      .mode.on .pico {
+        color: var(--pal-accent);
+      }
+
+      .mode-panels {
+        flex: 1;
+        min-height: 0;
+      }
+
+      .mode-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+      }
+
+      .pal-c .prow {
+        min-height: 36px;
+      }
+
+      .mode-panel .plist {
+        flex: 1;
+      }
+
+      .route-panel {
+        padding: 8px 8px 6px;
+      }
+
+      .route-result {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 5px 8px;
+        border: 1px solid var(--pal-border);
+        border-radius: 6px;
+        background: var(--pal-accent-soft);
+        box-shadow: inset 2px 0 0 var(--pal-accent);
+      }
+
+      .route-result .prow-ico {
+        color: var(--pal-accent);
+      }
+
+      .route-result .prow-title {
+        color: var(--pal-accent);
+        font-size: 12px;
+      }
+
+      .route-hint {
+        margin: 8px 2px 3px;
+        color: var(--pal-faint);
+        font-size: 8.5px;
+      }
+
+      .route-examples {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 5px;
+      }
+
+      .route-example {
+        padding: 3px 6px;
+        border: 1px solid var(--pal-border);
+        border-radius: 4px;
+        background: transparent;
+        color: var(--pal-muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 8.5px;
+        cursor: pointer;
+      }
+
+      .route-example:hover {
+        border-color: var(--pal-accent);
+        color: var(--pal-accent);
+      }
+
+      .save-card {
+        margin: 8px;
+        padding: 10px;
+        border: 1px solid var(--pal-border);
+        border-radius: 7px;
+        background: var(--pal-bg2);
+      }
+
+      .save-card-head {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .save-card-icon {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        background: var(--pal-accent-soft);
+        color: var(--pal-accent);
+      }
+
+      .save-card-title {
+        color: var(--pal-strong);
+        font-size: 11.5px;
+        font-weight: 600;
+      }
+
+      .save-card-sub {
+        margin-top: 1px;
+        color: var(--pal-faint);
+        font-size: 8.5px;
+      }
+
+      .save-name {
+        margin-top: 9px;
+        padding: 6px 7px;
+        border: 1px solid var(--pal-border);
+        border-radius: 5px;
+        background: var(--pal-bg);
+        color: var(--pal-muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 9px;
+      }
+
+      .save-note {
+        margin-top: 6px;
+        color: var(--pal-faint);
+        font-size: 8.5px;
+      }
+
+      .save-submit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        width: 100%;
+        height: 27px;
+        margin-top: 9px;
+        border: 0;
+        border-radius: 5px;
+        background: var(--pal-accent);
+        color: #13212a;
+        font-size: 9.5px;
+        font-weight: 650;
+        cursor: pointer;
+      }
+
+      body[data-palette-theme="light"] .save-submit {
+        color: #ffffff;
+      }
+
+      .tools-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 8px;
+      }
+
+      .tool-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+        min-height: 78px;
+        padding: 8px;
+        border: 1px solid var(--pal-border);
+        border-radius: 7px;
+        background: var(--pal-bg2);
+        color: var(--pal-muted);
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .tool-card:hover {
+        border-color: var(--pal-accent);
+        color: var(--pal-strong);
+      }
+
+      .tool-card.on {
+        border-color: var(--pal-accent);
+        background: var(--pal-accent-soft);
+      }
+
+      .tool-card .pico {
+        width: 16px;
+        height: 16px;
+        margin-bottom: 3px;
+        color: var(--pal-accent);
+      }
+
+      .tool-card b {
+        color: var(--pal-strong);
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .tool-card span {
+        color: var(--pal-faint);
+        font-size: 8.5px;
+        line-height: 1.35;
+      }
+
+      .pal-c .pfoot {
+        border-top: 1px solid var(--pal-border);
+      }
+
+      /* ---------- D: tool rail ---------- */
+
+      .pal-d {
+        width: min(600px, calc(100% - 28px));
+        flex-direction: row;
+      }
+
+      .rail {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        flex: none;
+        width: 48px;
+        padding: 6px 0;
+        border-right: 1px solid var(--pal-border);
+        background: #101319;
+      }
+
+      body[data-palette-theme="light"] .rail {
+        background: #f3f5f8;
+      }
+
+      .rail-btn {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--pal-faint);
+        cursor: pointer;
+      }
+
+      .rail-btn .pico {
+        width: 15px;
+        height: 15px;
+      }
+
+      .rail-btn:hover {
+        background: var(--pal-hover);
+        color: var(--pal-strong);
+      }
+
+      .rail-btn.on {
+        border-color: var(--pal-border);
+        background: var(--pal-accent-soft);
+        color: var(--pal-accent);
+        box-shadow: inset 2px 0 0 var(--pal-accent);
+      }
+
+      .rail-btn .rbadge {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        min-width: 12px;
+        height: 12px;
+        padding: 0 3px;
+        border-radius: 6px;
+        background: var(--pal-accent);
+        color: var(--pal-bg);
+        font-size: 7.5px;
+        font-weight: 700;
+        line-height: 12px;
+        text-align: center;
+      }
+
+      .rail-btn.on .rbadge {
+        display: none;
+      }
+
+      .rail-sep {
+        width: 24px;
+        height: 1px;
+        margin: 4px 0;
+        background: var(--pal-border);
+      }
+
+      .rail-bottom {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-top: auto;
+      }
+
+      .pal-d .pmain {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      .pal-d .psearch {
+        border-bottom: 1px solid var(--pal-border);
+      }
+
+      .pal-d .prow {
+        min-height: 34px;
+      }
+
+      .pal-d .pfoot {
+        border-top: 1px solid var(--pal-border);
+      }
+
+      /* ---------- Annotation ---------- */
+
+      body.annotate .gallery .palette [data-part]:hover,
+      body.annotate .gallery .palette [data-part]:focus {
+        outline: 1px dashed var(--lab-accent);
+        outline-offset: -2px;
+        cursor: crosshair;
+      }
+
+      body.annotate .gallery .palette {
+        cursor: crosshair;
+      }
+
+      .note-pop {
+        position: fixed;
+        z-index: 120;
+        width: 292px;
+        max-width: calc(100vw - 20px);
+        padding: 10px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 11px;
+        background: var(--popover, #171b23);
+        color: var(--popover-foreground, #e8ebf1);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+      }
+
+      .np-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+      }
+
+      .np-head b {
+        color: var(--foreground, #e8ebf1);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 9.5px;
+        font-weight: 600;
+      }
+
+      .np-variant {
+        display: inline-grid;
+        place-items: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        background: var(--lab-accent-soft);
+        color: var(--lab-accent);
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .np-close {
+        margin-left: auto;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        cursor: pointer;
+      }
+
+      .np-close:hover {
+        background: var(--secondary, rgba(127, 127, 127, 0.12));
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .note-pop textarea {
+        display: block;
+        width: 100%;
+        height: 68px;
+        padding: 7px 8px;
+        resize: vertical;
+        border: 1px solid var(--input, #313846);
+        border-radius: 7px;
+        outline: 0;
+        background: var(--background, #0f1115);
+        color: var(--foreground, #e8ebf1);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .note-pop textarea:focus {
+        border-color: var(--lab-accent);
+      }
+
+      .np-foot {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 7px;
+      }
+
+      .np-help {
+        flex: 1;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 8.5px;
+      }
+
+      .np-btn {
+        height: 25px;
+        padding: 0 8px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 9.5px;
+        cursor: pointer;
+      }
+
+      .np-btn:hover {
+        color: var(--foreground, #e8ebf1);
+      }
+
+      .np-btn.primary {
+        border-color: transparent;
+        background: var(--lab-accent);
+        color: #1b1609;
+        font-weight: 650;
+      }
+
+      .scrim-ui {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        background: rgba(0, 0, 0, 0.28);
+      }
+
+      .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        width: 340px;
+        max-width: calc(100vw - 24px);
+        border-left: 1px solid var(--border, #313846);
+        background: var(--popover, #171b23);
+        color: var(--popover-foreground, #e8ebf1);
+        box-shadow: -18px 0 50px rgba(0, 0, 0, 0.32);
+      }
+
+      .drawer-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 14px 10px;
+        border-bottom: 1px solid var(--border, #313846);
+      }
+
+      .drawer-head h2 {
+        flex: 1;
+        margin: 0;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .drawer-sub {
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--border, #313846);
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 9.5px;
+        line-height: 1.5;
+      }
+
+      .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+      }
+
+      .note-empty {
+        padding: 20px 10px;
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 10px;
+        text-align: center;
+      }
+
+      .note-item {
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid var(--border, #313846);
+        border-radius: 8px;
+        background: var(--secondary, rgba(127, 127, 127, 0.06));
+      }
+
+      .note-item + .note-item {
+        margin-top: 6px;
+      }
+
+      .nnum {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 17px;
+        height: 17px;
+        border-radius: 50%;
+        background: var(--lab-accent);
+        color: #1d1708;
+        font-size: 9px;
+        font-weight: 800;
+      }
+
+      .nmain {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .nmeta {
+        color: var(--muted-foreground, #8b94a3);
+        font-size: 8.5px;
+      }
+
+      .nmeta b {
+        color: var(--foreground, #e8ebf1);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-weight: 600;
+      }
+
+      .ntext {
+        margin-top: 3px;
+        color: var(--foreground, #e8ebf1);
+        font-size: 10px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .ndel {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--muted-foreground, #8b94a3);
+        cursor: pointer;
+      }
+
+      .ndel:hover {
+        background: rgba(239, 107, 115, 0.12);
+        color: var(--lab-danger);
+      }
+
+      .drawer-foot {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border-top: 1px solid var(--border, #313846);
+      }
+
+      .drawer-foot .dfill {
+        flex: 1;
+      }
+
+      .drawer-foot .np-btn {
+        height: 27px;
+        padding: 0 9px;
+        font-size: 10px;
+      }
+
+      .drawer-foot .np-btn.clear {
+        border-color: transparent;
+        color: var(--muted-foreground, #8b94a3);
+      }
+
+      .drawer-foot .np-btn.clear:hover {
+        color: var(--lab-danger);
+      }
+
+      .flash {
+        animation: flash 0.8s ease;
+      }
+
+      @keyframes flash {
+        0%,
+        100% {
+          box-shadow: var(--pal-shadow);
+        }
+        35% {
+          box-shadow:
+            0 0 0 2px var(--lab-accent),
+            0 18px 50px rgba(0, 0, 0, 0.36);
+        }
+      }
+
+      @media (max-width: 720px) {
+        .lab-foot {
+          grid-template-columns: 1fr;
+        }
+
+        .jump {
+          margin-left: 0;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .palette {
+          width: calc(100% - 18px);
+        }
+
+        .pal-b .preview {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body data-palette-theme="dark" data-density="comfortable">
+    <svg aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden">
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24">
+        <path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+      </symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14"></path>
+      </symbol>
+      <symbol id="i-dots" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1"></circle>
+        <circle cx="12" cy="12" r="1"></circle>
+        <circle cx="19" cy="12" r="1"></circle>
+      </symbol>
+      <symbol id="i-restore" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+        <path d="M3 3v5h5"></path>
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24">
+        <path d="M5 12h14M12 5l7 7-7 7"></path>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="M20 6 9 17l-5-5"></path>
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 8v4M12 16h.01"></path>
+      </symbol>
+      <symbol id="i-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 16v-4M12 8h.01"></path>
+      </symbol>
+      <symbol id="i-star" viewBox="0 0 24 24">
+        <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"></path>
+      </symbol>
+      <symbol id="i-note" viewBox="0 0 24 24">
+        <path d="M21 15a4 4 0 0 1-4 4H8l-6 3V6a3 3 0 0 1 3-3h12a4 4 0 0 1 4 4z"></path>
+        <path d="M8 9h8M8 13h5"></path>
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18M6 6l12 12"></path>
+      </symbol>
+      <symbol id="i-cursor" viewBox="0 0 24 24">
+        <path d="m3 3 7.07 17 2.51-7.39L20 10.07z"></path>
+      </symbol>
+      <symbol id="i-type" viewBox="0 0 24 24">
+        <path d="M4 7V4h16v3M9 20h6M12 4v16"></path>
+      </symbol>
+      <symbol id="i-vertical" viewBox="0 0 24 24">
+        <path d="M12 3v18"></path>
+      </symbol>
+      <symbol id="i-horizontal" viewBox="0 0 24 24">
+        <path d="M3 12h18"></path>
+      </symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24">
+        <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"></path>
+        <path d="M1 14h6M9 8h6M17 16h6"></path>
+      </symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path>
+      </symbol>
+    </svg>
+
+    <template id="page-tpl">
+      <div class="page">
+        <div class="pnav">
+          <div class="pbrand"><span class="plogo">A</span> ACME</div>
+          <div class="plinks"><span>Shop</span><span>Orders</span><span>Account</span></div>
+          <div class="pcart">Cart · 3</div>
+        </div>
+        <div class="pbody">
+          <div class="pmain">
+            <div class="pkicker">Checkout · step 3 of 3</div>
+            <div class="ptitle">Payment</div>
+            <div class="psteps"><span>Cart</span><span>Delivery</span><span class="on">Payment</span></div>
+            <div class="pform">
+              <div class="pfield wide"><span>Card number</span><div>4242 4242 4242 4242</div></div>
+              <div class="pfield"><span>Expiry</span><div>12 / 28</div></div>
+              <div class="pfield"><span>CVC</span><div>•••</div></div>
+              <div class="pbtn">Pay $128.00</div>
+            </div>
+          </div>
+          <aside class="psum">
+            <div class="psum-title">Order summary</div>
+            <div class="pitem">
+              <div class="pthumb"></div>
+              <div class="pitem-main"><b>Aurora lamp</b><span>Qty 1 · Sand</span></div>
+              <span>$128</span>
+            </div>
+            <div class="pline"><span>Subtotal</span><span>$128.00</span></div>
+            <div class="pline"><span>Shipping</span><span>Free</span></div>
+            <div class="ptotal"><span>Total</span><span>$128.00</span></div>
+          </aside>
+        </div>
+      </div>
+    </template>
+
+    <div class="lab">
+      <div class="toolbar">
+        <div class="toolbar-title">
+          <span class="kicker">Palette · Alt P</span>
+          <span class="toolbar-sub">4 directions · dark by default</span>
+        </div>
+        <div class="controls">
+          <div class="segment" role="group" aria-label="Palette theme">
+            <button type="button" data-theme="dark" class="on">Dark</button>
+            <button type="button" data-theme="light">Light</button>
+          </div>
+          <div class="segment" role="group" aria-label="Palette density">
+            <button type="button" data-density="comfortable" class="on">Comfortable</button>
+            <button type="button" data-density="compact">Compact</button>
+          </div>
+          <button type="button" class="tool-btn" id="annotateBtn" aria-pressed="false">
+            <svg class="pico"><use href="#i-note"></use></svg>
+            Annotate
+            <kbd>C</kbd>
+          </button>
+          <button type="button" class="tool-btn" id="notesBtn">
+            Notes
+            <span class="count" id="noteCount">0</span>
+          </button>
+          <button type="button" class="tool-btn primary" id="copyBtn">
+            <svg class="pico"><use href="#i-copy"></use></svg>
+            Copy feedback
+          </button>
+        </div>
+      </div>
+
+      <p class="lab-hint">
+        <strong>Click a row to try it.</strong> Try the mode tabs in C.
+        <strong>Annotate</strong> then click any part of a palette to pin a note.
+        Star the ones you want to keep.
+        <span class="jump">Jump to <button data-jump="A">A</button><button data-jump="B">B</button><button data-jump="C">C</button><button data-jump="D">D</button></span>
+      </p>
+
+      <main class="gallery" id="gallery">
+        <!-- ============ A ============ -->
+        <article class="card" data-card="A" id="card-A">
+          <div class="card-head">
+            <span class="letter">A</span>
+            <div class="card-title">
+              <h2>Quick pick</h2>
+              <p>
+                Dense and keyboard-first. One search box, grouped results, and
+                the inspector tools in a compact strip.
+              </p>
+            </div>
+            <div class="card-tools">
+              <button type="button" class="mini star" data-star="A" aria-label="Shortlist A" aria-pressed="false"><svg class="pico"><use href="#i-star"></use></svg></button>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="page-slot"></div>
+            <div class="scrim"></div>
+            <div class="palette pal-a" data-palette="A" aria-label="Design A, quick pick">
+              <div class="psearch" data-part="search">
+                <svg class="pico"><use href="#i-search"></use></svg>
+                <input type="text" placeholder="Search checkpoints, /route, ./child" aria-label="Search checkpoints or routes" />
+                <button type="button" class="pscope" data-action="scope" aria-pressed="false" title="Show checkpoints from all sites">
+                  <svg class="pico"><use href="#i-globe"></use></svg><span>This site</span><b class="pbadge">2</b>
+                </button>
+              </div>
+
+              <div class="plist" data-part="list">
+                <div class="psection"><span>Actions</span><i></i></div>
+                <div class="prow add" data-part="row" data-action="save" role="button" tabindex="0">
+                  <span class="prow-ico"><svg class="pico"><use href="#i-plus"></use></svg></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Save current state</div>
+                    <div class="prow-sub mono">app.acme.com/checkout/payment</div>
+                  </div>
+                  <span class="pkeys"><kbd>Alt</kbd><kbd>S</kbd></span>
+                </div>
+
+                <div class="psection"><span>Checkpoints</span><i></i><b>6</b></div>
+                <div class="prow on" data-part="row" data-action="restore">
+                  <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Payment step</div>
+                    <div class="prow-sub mono">/checkout/payment</div>
+                  </div>
+                  <span class="pmeta">2m</span>
+                  <span class="pkeys"><kbd>↵</kbd></span>
+                  <button type="button" class="prow-more" data-action="more" aria-label="Rename, export, delete"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-part="row" data-action="restore">
+                  <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                  <div class="prow-main">
+                    <div class="prow-title mono">/cart</div>
+                    <div class="prow-sub">14m · 31.7 KB</div>
+                  </div>
+                  <span class="pmeta">14m</span>
+                  <button type="button" class="prow-more" data-action="more" aria-label="Rename, export, delete"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-part="row" data-action="restore">
+                  <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Order #1042</div>
+                    <div class="prow-sub mono">/orders/1042</div>
+                  </div>
+                  <span class="pmeta">1h</span>
+                  <button type="button" class="prow-more" data-action="more" aria-label="Rename, export, delete"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-part="row" data-action="restore">
+                  <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Before checkout</div>
+                    <div class="prow-sub mono">/cart</div>
+                  </div>
+                  <span class="pmeta">3h</span>
+                  <button type="button" class="prow-more" data-action="more" aria-label="Rename, export, delete"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+                <div class="prow" data-other data-part="row" data-action="restore">
+                  <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                  <div class="prow-main">
+                    <div class="prow-title">Aurora lamp PDP</div>
+                    <div class="prow-sub"><span class="host">staging.acme.com</span><span class="mono"> /products/aurora-lamp</span></div>
+                  </div>
+                  <span class="pmeta">2d</span>
+                  <button type="button" class="prow-more" data-action="more" aria-label="Rename, export, delete"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                </div>
+              </div>
+
+              <div class="ptools" data-part="tools">
+                <span class="ptools-label">Tools</span>
+                <button type="button" class="ptool" data-action="tool" data-tool="Inspect"><svg class="pico"><use href="#i-cursor"></use></svg>Inspect</button>
+                <button type="button" class="ptool" data-action="tool" data-tool="Type"><svg class="pico"><use href="#i-type"></use></svg>Type</button>
+                <button type="button" class="ptool" data-action="tool" data-tool="Vertical"><svg class="pico"><use href="#i-vertical"></use></svg>Vertical</button>
+                <button type="button" class="ptool" data-action="tool" data-tool="Horizontal"><svg class="pico"><use href="#i-horizontal"></use></svg>Horizontal</button>
+              </div>
+
+              <div class="pfoot" data-part="footer">
+                <span><kbd>↑↓</kbd> move</span>
+                <span><kbd>↵</kbd> restore</span>
+                <span><kbd>⇧↵</kbd> go</span>
+                <span class="fill"></span>
+                <span><kbd>Alt</kbd><kbd>A</kbd> all sites</span>
+                <span><kbd>esc</kbd> close</span>
+              </div>
+              <div class="pins" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="card-foot">
+            <span class="tag">Fastest</span>
+            <span>Smallest change; fixes hierarchy, density and action overload.</span>
+          </div>
+        </article>
+
+        <!-- ============ B ============ -->
+        <article class="card" data-card="B" id="card-B">
+          <div class="card-head">
+            <span class="letter">B</span>
+            <div class="card-title">
+              <h2>Split preview</h2>
+              <p>
+                A preview pane shows where the highlighted checkpoint will
+                restore, so a cross-site restore is never a guess.
+              </p>
+            </div>
+            <div class="card-tools">
+              <button type="button" class="mini star" data-star="B" aria-label="Shortlist B" aria-pressed="false"><svg class="pico"><use href="#i-star"></use></svg></button>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="page-slot"></div>
+            <div class="scrim"></div>
+            <div class="palette pal-b" data-palette="B" aria-label="Design B, split preview">
+              <div class="psearch" data-part="search">
+                <svg class="pico"><use href="#i-search"></use></svg>
+                <input type="text" placeholder="Search checkpoints, /route, ./child" aria-label="Search checkpoints or routes" />
+                <button type="button" class="pscope" data-action="scope" aria-pressed="false" title="Show checkpoints from all sites">
+                  <svg class="pico"><use href="#i-globe"></use></svg><span>This site</span><b class="pbadge">2</b>
+                </button>
+              </div>
+
+              <div class="pbody">
+                <div class="plist" data-part="list">
+                  <div class="psection"><span>Actions</span><i></i></div>
+                  <div class="prow add" data-part="row" data-action="save" role="button" tabindex="0">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-plus"></use></svg></span>
+                    <div class="prow-main">
+                      <div class="prow-title">Save current state</div>
+                      <div class="prow-sub mono">app.acme.com/checkout/payment</div>
+                    </div>
+                    <span class="pkeys"><kbd>Alt</kbd><kbd>S</kbd></span>
+                  </div>
+                  <div class="psection"><span>Checkpoints</span><i></i><b>6</b></div>
+                  <div class="prow on" data-part="row" data-select data-preview data-title="Payment step" data-route="/checkout/payment" data-time="2m" data-size="48.2 KB" data-host="app.acme.com" data-map="Same site · no mapping" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main">
+                      <div class="prow-title">Payment step</div>
+                      <div class="prow-sub mono">/checkout/payment</div>
+                    </div>
+                    <span class="pmeta">2m</span>
+                  </div>
+                  <div class="prow" data-part="row" data-select data-preview data-title="/cart" data-route="/cart" data-time="14m" data-size="31.7 KB" data-host="app.acme.com" data-map="Same site · no mapping" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main">
+                      <div class="prow-title mono">/cart</div>
+                      <div class="prow-sub">14m · 31.7 KB</div>
+                    </div>
+                    <span class="pmeta">14m</span>
+                  </div>
+                  <div class="prow" data-part="row" data-select data-preview data-title="Order #1042" data-route="/orders/1042" data-time="1h" data-size="52.9 KB" data-host="app.acme.com" data-map="Same site · no mapping" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main">
+                      <div class="prow-title">Order #1042</div>
+                      <div class="prow-sub mono">/orders/1042</div>
+                    </div>
+                    <span class="pmeta">1h</span>
+                  </div>
+                  <div class="prow" data-part="row" data-select data-preview data-title="Before checkout" data-route="/cart" data-time="3h" data-size="12.4 KB" data-host="app.acme.com" data-map="Same site · no mapping" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main">
+                      <div class="prow-title">Before checkout</div>
+                      <div class="prow-sub mono">/cart</div>
+                    </div>
+                    <span class="pmeta">3h</span>
+                  </div>
+                  <div class="prow" data-part="row" data-select data-preview data-title="Aurora lamp PDP" data-route="/products/aurora-lamp" data-time="2d" data-size="26.1 KB" data-host="staging.acme.com" data-map="Mapped · Staging → Production" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main">
+                      <div class="prow-title">Aurora lamp PDP</div>
+                      <div class="prow-sub"><span class="host">staging.acme.com</span></div>
+                    </div>
+                    <span class="pmeta">2d</span>
+                  </div>
+                  <div class="prow" data-other data-part="row" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main">
+                      <div class="prow-title">Logged out</div>
+                      <div class="prow-sub mono">/login</div>
+                    </div>
+                    <span class="pmeta">5d</span>
+                  </div>
+                </div>
+
+                <aside class="preview" data-part="preview">
+                  <div class="pv-head"><span>Checkpoint</span><span class="pv-dots">···</span></div>
+                  <div class="pv-title">Payment step</div>
+                  <div class="pv-route mono">/checkout/payment</div>
+                  <div class="pv-chips">
+                    <span class="pv-chip pv-time">2m ago</span>
+                    <span class="pv-chip pv-size">48.2 KB</span>
+                  </div>
+                  <div class="pv-section">
+                    <div class="pv-label">Restores to</div>
+                    <div class="pv-target">
+                      <div class="pv-host">app.acme.com</div>
+                      <div class="mono pv-target-route">/checkout/payment</div>
+                      <div class="pv-map"><svg class="pico"><use href="#i-globe"></use></svg><span class="pv-map-text">Same site · no mapping</span></div>
+                    </div>
+                  </div>
+                  <div class="pv-actions">
+                    <button type="button" class="pv-primary" data-action="restore"><svg class="pico"><use href="#i-restore"></use></svg><span class="pv-primary-label">Restore state</span></button>
+                    <button type="button" class="pv-secondary" data-action="go"><svg class="pico"><use href="#i-arrow"></use></svg>Go without state</button>
+                  </div>
+                  <div class="pv-tools" data-part="tools">
+                    <span class="pv-tools-label">Tools</span>
+                    <button type="button" class="pv-tool" data-action="tool" data-tool="Inspect" title="Inspect"><svg class="pico"><use href="#i-cursor"></use></svg></button>
+                    <button type="button" class="pv-tool" data-action="tool" data-tool="Type" title="Type"><svg class="pico"><use href="#i-type"></use></svg></button>
+                    <button type="button" class="pv-tool" data-action="tool" data-tool="Vertical" title="Vertical guides"><svg class="pico"><use href="#i-vertical"></use></svg></button>
+                    <button type="button" class="pv-tool" data-action="tool" data-tool="Horizontal" title="Horizontal guides"><svg class="pico"><use href="#i-horizontal"></use></svg></button>
+                  </div>
+                </aside>
+              </div>
+
+              <div class="pfoot" data-part="footer">
+                <span><kbd>↑↓</kbd> move</span>
+                <span><kbd>↵</kbd> restore</span>
+                <span><kbd>⇧↵</kbd> go</span>
+                <span class="fill"></span>
+                <span><kbd>Alt</kbd><kbd>A</kbd> all sites</span>
+                <span><kbd>esc</kbd> close</span>
+              </div>
+              <div class="pins" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="card-foot">
+            <span class="tag">Most context</span>
+            <span>Best for cross-site restores and mappings; widest option.</span>
+          </div>
+        </article>
+
+        <!-- ============ C ============ -->
+        <article class="card" data-card="C" id="card-C">
+          <div class="card-head">
+            <span class="letter">C</span>
+            <div class="card-title">
+              <h2>Mode tabs</h2>
+              <p>
+                Separates checkpoints, routes, saving and tools. Typing
+                <span class="mono">/</span> jumps straight to route mode.
+              </p>
+            </div>
+            <div class="card-tools">
+              <button type="button" class="mini star" data-star="C" aria-label="Shortlist C" aria-pressed="false"><svg class="pico"><use href="#i-star"></use></svg></button>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="page-slot"></div>
+            <div class="scrim"></div>
+            <div class="palette pal-c" data-palette="C" data-mode="checkpoints" aria-label="Design C, mode tabs">
+              <div class="psearch" data-part="search">
+                <svg class="pico"><use href="#i-search"></use></svg>
+                <input type="text" class="mode-input" placeholder="Search checkpoints" aria-label="Search checkpoints or routes" />
+                <button type="button" class="pscope" data-action="scope" aria-pressed="false" title="Show checkpoints from all sites">
+                  <svg class="pico"><use href="#i-globe"></use></svg><span>This site</span><b class="pbadge">2</b>
+                </button>
+              </div>
+
+              <div class="modes" data-part="mode-tabs" role="tablist" aria-label="Palette mode">
+                <button type="button" class="mode on" data-mode-btn="checkpoints" role="tab" aria-selected="true"><svg class="pico"><use href="#i-bookmark"></use></svg>Checkpoints</button>
+                <button type="button" class="mode" data-mode-btn="go" role="tab" aria-selected="false"><svg class="pico"><use href="#i-arrow"></use></svg>Go to</button>
+                <button type="button" class="mode" data-mode-btn="save" role="tab" aria-selected="false"><svg class="pico"><use href="#i-plus"></use></svg>Save</button>
+                <button type="button" class="mode" data-mode-btn="tools" role="tab" aria-selected="false"><svg class="pico"><use href="#i-sliders"></use></svg>Tools</button>
+              </div>
+
+              <div class="mode-panels">
+                <div class="mode-panel" data-mode-panel="checkpoints" data-part="panel">
+                  <div class="plist" data-part="list">
+                    <div class="psection"><span>Checkpoints</span><i></i><b>6</b></div>
+                    <div class="prow on" data-part="row" data-action="restore">
+                      <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                      <div class="prow-main"><div class="prow-title">Payment step</div><div class="prow-sub mono">/checkout/payment</div></div>
+                      <span class="pmeta">2m</span>
+                      <span class="pkeys"><kbd>↵</kbd></span>
+                      <button type="button" class="prow-more" data-action="more" aria-label="Rename, export, delete"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                    </div>
+                    <div class="prow" data-part="row" data-action="restore">
+                      <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                      <div class="prow-main"><div class="prow-title mono">/cart</div><div class="prow-sub">14m · 31.7 KB</div></div>
+                      <span class="pmeta">14m</span>
+                    </div>
+                    <div class="prow" data-part="row" data-action="restore">
+                      <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                      <div class="prow-main"><div class="prow-title">Order #1042</div><div class="prow-sub mono">/orders/1042</div></div>
+                      <span class="pmeta">1h</span>
+                    </div>
+                    <div class="prow" data-part="row" data-action="restore">
+                      <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                      <div class="prow-main"><div class="prow-title">Before checkout</div><div class="prow-sub mono">/cart</div></div>
+                      <span class="pmeta">3h</span>
+                    </div>
+                    <div class="prow" data-part="row" data-action="restore">
+                      <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                      <div class="prow-main"><div class="prow-title">Logged out</div><div class="prow-sub mono">/login</div></div>
+                      <span class="pmeta">5d</span>
+                    </div>
+                    <div class="prow" data-other data-part="row" data-action="restore">
+                      <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                      <div class="prow-main"><div class="prow-title">Aurora lamp PDP</div><div class="prow-sub"><span class="host">staging.acme.com</span></div></div>
+                      <span class="pmeta">2d</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mode-panel" data-mode-panel="go" data-part="panel" hidden>
+                  <div class="route-panel">
+                    <div class="route-result" data-action="go" role="button" tabindex="0">
+                      <span class="prow-ico"><svg class="pico"><use href="#i-arrow"></use></svg></span>
+                      <div class="prow-main">
+                        <div class="prow-title mono route-result-title">/cart</div>
+                        <div class="prow-sub">Go to route · keep state</div>
+                      </div>
+                      <span class="pkeys"><kbd>↵</kbd></span>
+                    </div>
+                    <div class="route-hint">Relative paths resolve from <span class="mono">/checkout/payment</span></div>
+                    <div class="route-examples">
+                      <button type="button" class="route-example">/cart</button>
+                      <button type="button" class="route-example">./delivery</button>
+                      <button type="button" class="route-example">../orders</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mode-panel" data-mode-panel="save" data-part="panel" hidden>
+                  <div class="save-card">
+                    <div class="save-card-head">
+                      <span class="save-card-icon"><svg class="pico"><use href="#i-plus"></use></svg></span>
+                      <div>
+                        <div class="save-card-title">Save current state</div>
+                        <div class="save-card-sub">app.acme.com/checkout/payment</div>
+                      </div>
+                    </div>
+                    <div class="save-name">/checkout/payment 3</div>
+                    <div class="save-note">Auto-named after the route. Rename it later with F2.</div>
+                    <button type="button" class="save-submit" data-action="save"><svg class="pico"><use href="#i-check"></use></svg>Save checkpoint</button>
+                  </div>
+                </div>
+
+                <div class="mode-panel" data-mode-panel="tools" data-part="panel" hidden>
+                  <div class="tools-grid">
+                    <button type="button" class="tool-card" data-action="tool" data-tool="Inspect">
+                      <svg class="pico"><use href="#i-cursor"></use></svg><b>Inspect</b><span>Measure an element; click to pin it.</span>
+                    </button>
+                    <button type="button" class="tool-card" data-action="tool" data-tool="Type">
+                      <svg class="pico"><use href="#i-type"></use></svg><b>Type</b><span>Show fonts, sizes and colours on the page.</span>
+                    </button>
+                    <button type="button" class="tool-card" data-action="tool" data-tool="Vertical">
+                      <svg class="pico"><use href="#i-vertical"></use></svg><b>Vertical guides</b><span>Place and drag alignment guides.</span>
+                    </button>
+                    <button type="button" class="tool-card" data-action="tool" data-tool="Horizontal">
+                      <svg class="pico"><use href="#i-horizontal"></use></svg><b>Horizontal guides</b><span>Place and drag alignment guides.</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pfoot" data-part="footer">
+                <span><kbd>Tab</kbd> mode</span>
+                <span><kbd>↑↓</kbd> move</span>
+                <span><kbd>↵</kbd> run</span>
+                <span class="fill"></span>
+                <span><kbd>Alt</kbd><kbd>A</kbd> all sites</span>
+                <span><kbd>esc</kbd> close</span>
+              </div>
+              <div class="pins" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="card-foot">
+            <span class="tag">Clearest</span>
+            <span>Separates search from navigation and makes tools discoverable.</span>
+          </div>
+        </article>
+
+        <!-- ============ D ============ -->
+        <article class="card" data-card="D" id="card-D">
+          <div class="card-head">
+            <span class="letter">D</span>
+            <div class="card-title">
+              <h2>Tool rail</h2>
+              <p>
+                A slim icon rail gives the inspector tools a permanent home
+                instead of a footer strip. The list keeps the width.
+              </p>
+            </div>
+            <div class="card-tools">
+              <button type="button" class="mini star" data-star="D" aria-label="Shortlist D" aria-pressed="false"><svg class="pico"><use href="#i-star"></use></svg></button>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="page-slot"></div>
+            <div class="scrim"></div>
+            <div class="palette pal-d" data-palette="D" aria-label="Design D, tool rail">
+              <aside class="rail" data-part="rail">
+                <button type="button" class="rail-btn on" data-action="rail-tool" data-tool="Checkpoints" title="Checkpoints"><svg class="pico"><use href="#i-bookmark"></use></svg></button>
+                <div class="rail-sep"></div>
+                <button type="button" class="rail-btn" data-action="tool" data-tool="Inspect" title="Inspect"><svg class="pico"><use href="#i-cursor"></use></svg></button>
+                <button type="button" class="rail-btn" data-action="tool" data-tool="Type" title="Type"><svg class="pico"><use href="#i-type"></use></svg></button>
+                <button type="button" class="rail-btn" data-action="tool" data-tool="Vertical" title="Vertical guides"><svg class="pico"><use href="#i-vertical"></use></svg></button>
+                <button type="button" class="rail-btn" data-action="tool" data-tool="Horizontal" title="Horizontal guides"><svg class="pico"><use href="#i-horizontal"></use></svg></button>
+                <div class="rail-bottom">
+                  <button type="button" class="rail-btn" data-action="scope" aria-pressed="false" title="Show all sites">
+                    <svg class="pico"><use href="#i-globe"></use></svg><span class="rbadge">2</span>
+                  </button>
+                  <button type="button" class="rail-btn" data-action="import" title="Import JSON"><svg class="pico"><use href="#i-upload"></use></svg></button>
+                </div>
+              </aside>
+
+              <div class="pmain">
+                <div class="psearch" data-part="search">
+                  <svg class="pico"><use href="#i-search"></use></svg>
+                  <input type="text" placeholder="Search checkpoints or /route" aria-label="Search checkpoints or routes" />
+                </div>
+
+                <div class="plist" data-part="list">
+                  <div class="psection"><span>Actions</span><i></i></div>
+                  <div class="prow add" data-part="row" data-action="save" role="button" tabindex="0">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-plus"></use></svg></span>
+                    <div class="prow-main"><div class="prow-title">Save current state</div><div class="prow-sub mono">app.acme.com/checkout/payment</div></div>
+                    <span class="pkeys"><kbd>Alt</kbd><kbd>S</kbd></span>
+                  </div>
+                  <div class="psection"><span>Checkpoints</span><i></i><b>6</b></div>
+                  <div class="prow on" data-part="row" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main"><div class="prow-title">Payment step</div><div class="prow-sub mono">/checkout/payment</div></div>
+                    <span class="pmeta">2m</span>
+                    <span class="pkeys"><kbd>↵</kbd></span>
+                    <button type="button" class="prow-more" data-action="more" aria-label="Rename, export, delete"><svg class="pico"><use href="#i-dots"></use></svg></button>
+                  </div>
+                  <div class="prow" data-part="row" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main"><div class="prow-title mono">/cart</div><div class="prow-sub">14m · 31.7 KB</div></div>
+                    <span class="pmeta">14m</span>
+                  </div>
+                  <div class="prow" data-part="row" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main"><div class="prow-title">Order #1042</div><div class="prow-sub mono">/orders/1042</div></div>
+                    <span class="pmeta">1h</span>
+                  </div>
+                  <div class="prow" data-part="row" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main"><div class="prow-title">Before checkout</div><div class="prow-sub mono">/cart</div></div>
+                    <span class="pmeta">3h</span>
+                  </div>
+                  <div class="prow" data-part="row" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main"><div class="prow-title">Logged out</div><div class="prow-sub mono">/login</div></div>
+                    <span class="pmeta">5d</span>
+                  </div>
+                  <div class="prow" data-other data-part="row" data-action="restore">
+                    <span class="prow-ico"><svg class="pico"><use href="#i-bookmark"></use></svg></span>
+                    <div class="prow-main"><div class="prow-title">Aurora lamp PDP</div><div class="prow-sub"><span class="host">staging.acme.com</span></div></div>
+                    <span class="pmeta">2d</span>
+                  </div>
+                </div>
+
+                <div class="pfoot" data-part="footer">
+                  <span><kbd>↑↓</kbd> move</span>
+                  <span><kbd>↵</kbd> restore</span>
+                  <span><kbd>⇧↵</kbd> go</span>
+                  <span class="fill"></span>
+                  <span><kbd>esc</kbd> close</span>
+                </div>
+              </div>
+              <div class="pins" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="card-foot">
+            <span class="tag">Most distinctive</span>
+            <span>Makes the palette a compact toolbox; best if inspector use is frequent.</span>
+          </div>
+        </article>
+      </main>
+
+      <div class="lab-foot">
+        <div>
+          <strong>Dark first:</strong> the palette keeps its own theme instead of
+          following the page. The current build follows the OS; making dark the
+          default is a preference change, not a new palette implementation.
+        </div>
+        <div>
+          <strong>Naming:</strong> <em>palette</em> is the Alt P overlay;
+          <em>panel</em> is the DevTools tab. The code already uses
+          <span class="mono">palette.ts</span> and <span class="mono">Palette</span>,
+          so the vocabulary can stay.
+        </div>
+      </div>
+    </div>
+
+    <div class="scrim-ui" id="uiScrim" hidden></div>
+
+    <aside class="drawer" id="drawer" aria-label="Review notes" hidden>
+      <div class="drawer-head">
+        <h2>Review notes</h2>
+        <button type="button" class="np-close" id="drawerClose" aria-label="Close notes"><svg class="pico" width="14" height="14"><use href="#i-x"></use></svg></button>
+      </div>
+      <div class="drawer-sub" id="drawerSub">No shortlist yet. Star a direction to remember it.</div>
+      <div class="drawer-body" id="noteList"></div>
+      <div class="drawer-foot">
+        <button type="button" class="np-btn clear" id="clearBtn">Clear all</button>
+        <span class="dfill"></span>
+        <button type="button" class="np-btn" id="drawerCopy">Copy feedback</button>
+      </div>
+    </aside>
+
+    <div class="note-pop" id="notePop" hidden>
+      <div class="np-head">
+        <span class="np-variant" id="npVariant">A</span>
+        <span>Note on <b id="npPart">row</b></span>
+        <button type="button" class="np-close" id="npClose" aria-label="Close note"><svg class="pico" width="13" height="13"><use href="#i-x"></use></svg></button>
+      </div>
+      <textarea id="npText" placeholder="What should change here?"></textarea>
+      <div class="np-foot">
+        <span class="np-help">Pinned to this spot</span>
+        <button type="button" class="np-btn" id="npCancel">Cancel</button>
+        <button type="button" class="np-btn primary" id="npSave">Add note</button>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const STORAGE_KEY = "respawn-palette-lab-v1";
+        const state = {
+          theme: "dark",
+          density: "comfortable",
+          annotate: false,
+          shortlist: new Set(),
+          notes: [],
+        };
+
+        const $ = (selector, root = document) => root.querySelector(selector);
+        const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+        const gallery = $("#gallery");
+        const notePop = $("#notePop");
+        const npText = $("#npText");
+        const npPart = $("#npPart");
+        const npVariant = $("#npVariant");
+        const noteList = $("#noteList");
+        const drawer = $("#drawer");
+        const uiScrim = $("#uiScrim");
+        const drawerSub = $("#drawerSub");
+        const drawerCopy = $("#drawerCopy");
+        const clearBtn = $("#clearBtn");
+        const annotateBtn = $("#annotateBtn");
+        const notesBtn = $("#notesBtn");
+        const copyBtn = $("#copyBtn");
+        const noteCount = $("#noteCount");
+        let pending = null;
+        let noteSeq = 0;
+        let clearArmed = false;
+        let clearTimer = 0;
+
+        function safeStorage(fn) {
+          try {
+            return fn();
+          } catch {
+            return undefined;
+          }
+        }
+
+        function load() {
+          const saved = safeStorage(() =>
+            JSON.parse(localStorage.getItem(STORAGE_KEY) || "null")
+          );
+          if (!saved || typeof saved !== "object") return;
+          if (saved.theme === "light" || saved.theme === "dark") state.theme = saved.theme;
+          if (saved.density === "compact" || saved.density === "comfortable") state.density = saved.density;
+          if (Array.isArray(saved.shortlist)) state.shortlist = new Set(saved.shortlist);
+          if (Array.isArray(saved.notes)) state.notes = saved.notes;
+          noteSeq = state.notes.reduce((max, note) => Math.max(max, note.id || 0), 0);
+        }
+
+        function persist() {
+          safeStorage(() =>
+            localStorage.setItem(
+              STORAGE_KEY,
+              JSON.stringify({
+                theme: state.theme,
+                density: state.density,
+                shortlist: [...state.shortlist],
+                notes: state.notes,
+              })
+            )
+          );
+        }
+
+        function applyChrome() {
+          document.body.dataset.paletteTheme = state.theme;
+          document.body.dataset.density = state.density;
+          $$(".segment [data-theme]").forEach((button) => {
+            button.classList.toggle("on", button.dataset.theme === state.theme);
+          });
+          $$(".segment [data-density]").forEach((button) => {
+            button.classList.toggle("on", button.dataset.density === state.density);
+          });
+          $$("[data-star]").forEach((button) => {
+            const on = state.shortlist.has(button.dataset.star);
+            button.classList.toggle("on", on);
+            button.setAttribute("aria-pressed", String(on));
+            button.title = on ? "Remove from shortlist" : "Shortlist this direction";
+          });
+          $$("[data-card]").forEach((card) => {
+            card.classList.toggle("is-picked", state.shortlist.has(card.dataset.card));
+          });
+          annotateBtn.classList.toggle("on", state.annotate);
+          annotateBtn.setAttribute("aria-pressed", String(state.annotate));
+          document.body.classList.toggle("annotate", state.annotate);
+          noteCount.textContent = String(state.notes.length);
+          notesBtn.title = state.notes.length ? `${state.notes.length} note(s)` : "No notes yet";
+          renderDrawer();
+        }
+
+        function setTheme(theme) {
+          state.theme = theme;
+          persist();
+          applyChrome();
+        }
+
+        function setDensity(density) {
+          state.density = density;
+          persist();
+          applyChrome();
+        }
+
+        function toggleAnnotate() {
+          state.annotate = !state.annotate;
+          if (!state.annotate) closePopover();
+          applyChrome();
+        }
+
+        function closePopover() {
+          notePop.hidden = true;
+          pending = null;
+        }
+
+        function openPopover(x, y, part, variant) {
+          npVariant.textContent = variant;
+          npPart.textContent = part;
+          npText.value = "";
+          notePop.hidden = false;
+          const width = 292;
+          const height = 168;
+          const left = Math.max(8, Math.min(x + 12, window.innerWidth - width - 8));
+          const top = Math.max(8, Math.min(y + 10, window.innerHeight - height - 8));
+          notePop.style.left = `${left}px`;
+          notePop.style.top = `${top}px`;
+          requestAnimationFrame(() => npText.focus());
+        }
+
+        function renderPins() {
+          $$(".palette").forEach((palette) => {
+            const layer = $(".pins", palette);
+            if (!layer) return;
+            layer.replaceChildren(
+              ...state.notes
+                .filter((note) => note.variant === palette.dataset.palette)
+                .map((note) => {
+                  const pin = document.createElement("span");
+                  pin.className = "pin";
+                  pin.style.left = `${note.x}%`;
+                  pin.style.top = `${note.y}%`;
+                  pin.textContent = String(note.id);
+                  pin.title = note.text;
+                  return pin;
+                })
+            );
+          });
+        }
+
+        function escapeHtml(value) {
+          return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;");
+        }
+
+        function renderDrawer() {
+          const picks = [...state.shortlist].sort();
+          drawerSub.textContent = picks.length
+            ? `Shortlist: ${picks.join(", ")}. ${
+                state.notes.length
+                  ? `${state.notes.length} note${state.notes.length === 1 ? "" : "s"} pinned.`
+                  : "No notes yet."
+              }`
+            : state.notes.length
+              ? `${state.notes.length} note${state.notes.length === 1 ? "" : "s"} pinned.`
+              : "No shortlist yet. Star a direction to remember it.";
+
+          if (!state.notes.length) {
+            noteList.innerHTML =
+              '<div class="note-empty">Turn on Annotate, then click any part of a palette to leave a note.</div>';
+            return;
+          }
+
+          noteList.replaceChildren(
+            ...state.notes.map((note) => {
+              const item = document.createElement("div");
+              item.className = "note-item";
+              item.innerHTML = `
+                <span class="nnum">${note.id}</span>
+                <div class="nmain">
+                  <div class="nmeta"><b>${escapeHtml(`${note.variant} · ${note.part}`)}</b></div>
+                  <div class="ntext"></div>
+                </div>
+                <button type="button" class="ndel" aria-label="Delete note ${note.id}">×</button>
+              `;
+              $(".ntext", item).textContent = note.text;
+              $(".ndel", item).addEventListener("click", (event) => {
+                event.stopPropagation();
+                deleteNote(note.id);
+              });
+              item.addEventListener("click", () => {
+                const palette = $(`.palette[data-palette="${note.variant}"]`);
+                if (!palette) return;
+                palette.scrollIntoView({ behavior: "smooth", block: "center" });
+                palette.classList.remove("flash");
+                void palette.offsetWidth;
+                palette.classList.add("flash");
+              });
+              return item;
+            })
+          );
+        }
+
+        function addNote(text) {
+          if (!pending || !text.trim()) return;
+          const note = {
+            id: ++noteSeq,
+            variant: pending.variant,
+            part: pending.part,
+            x: pending.x,
+            y: pending.y,
+            text: text.trim(),
+          };
+          state.notes.push(note);
+          persist();
+          renderPins();
+          applyChrome();
+          closePopover();
+          openDrawer();
+        }
+
+        function deleteNote(id) {
+          state.notes = state.notes.filter((note) => note.id !== id);
+          persist();
+          renderPins();
+          applyChrome();
+        }
+
+        function openDrawer() {
+          drawer.hidden = false;
+          uiScrim.hidden = false;
+          renderDrawer();
+        }
+
+        function closeDrawer() {
+          drawer.hidden = true;
+          uiScrim.hidden = true;
+        }
+
+        function feedbackText() {
+          const picks = [...state.shortlist].sort();
+          const lines = [
+            "reSpawn palette (Alt+P) — design feedback",
+            "",
+            `Palette theme: ${state.theme}`,
+            `Density: ${state.density}`,
+            `Shortlist: ${picks.length ? picks.join(", ") : "(none)"}`,
+            "",
+          ];
+          if (state.notes.length) {
+            lines.push("Notes:");
+            for (const note of state.notes) {
+              lines.push(`- ${note.variant} · ${note.part}: ${note.text}`);
+            }
+          } else {
+            lines.push("Notes: (none)");
+          }
+          return lines.join("\n");
+        }
+
+        async function copyFeedback() {
+          const text = feedbackText();
+          let copied = false;
+          try {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+          } catch {
+            const area = document.createElement("textarea");
+            area.value = text;
+            area.style.position = "fixed";
+            area.style.opacity = "0";
+            document.body.append(area);
+            area.select();
+            try {
+              copied = document.execCommand("copy");
+            } catch {
+              copied = false;
+            }
+            area.remove();
+          }
+          if (!copied) {
+            npText.value = text;
+            notePop.hidden = false;
+            npPart.textContent = "feedback";
+            npVariant.textContent = "✎";
+            notePop.style.left = "12px";
+            notePop.style.top = "12px";
+            return;
+          }
+          for (const button of [copyBtn, drawerCopy]) {
+            if (!button) continue;
+            const old = button.textContent;
+            button.textContent = "Copied ✓";
+            setTimeout(() => {
+              button.textContent = old;
+            }, 1500);
+          }
+        }
+
+        // ---- boot page mocks ----
+        const pageTpl = $("#page-tpl");
+        $$(".page-slot").forEach((slot) => slot.append(pageTpl.content.cloneNode(true)));
+
+        // ---- controls ----
+        $$(".segment [data-theme]").forEach((button) => {
+          button.addEventListener("click", () => setTheme(button.dataset.theme));
+        });
+        $$(".segment [data-density]").forEach((button) => {
+          button.addEventListener("click", () => setDensity(button.dataset.density));
+        });
+        annotateBtn.addEventListener("click", toggleAnnotate);
+        notesBtn.addEventListener("click", openDrawer);
+        copyBtn.addEventListener("click", () => void copyFeedback());
+        drawerCopy.addEventListener("click", () => void copyFeedback());
+        $("#drawerClose").addEventListener("click", closeDrawer);
+        uiScrim.addEventListener("click", closeDrawer);
+        $("#npClose").addEventListener("click", closePopover);
+        $("#npCancel").addEventListener("click", closePopover);
+        $("#npSave").addEventListener("click", () => addNote(npText.value));
+        npText.addEventListener("keydown", (event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            addNote(npText.value);
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closePopover();
+          }
+        });
+        clearBtn.addEventListener("click", () => {
+          if (!state.notes.length) return;
+          if (!clearArmed) {
+            clearArmed = true;
+            clearBtn.textContent = "Clear all?";
+            clearTimeout(clearTimer);
+            clearTimer = setTimeout(() => {
+              clearArmed = false;
+              clearBtn.textContent = "Clear all";
+            }, 2600);
+            return;
+          }
+          state.notes = [];
+          persist();
+          renderPins();
+          applyChrome();
+          clearArmed = false;
+          clearBtn.textContent = "Clear all";
+        });
+
+        // ---- shortlist ----
+        $$("[data-star]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const id = button.dataset.star;
+            if (state.shortlist.has(id)) state.shortlist.delete(id);
+            else state.shortlist.add(id);
+            persist();
+            applyChrome();
+          });
+        });
+
+        // ---- jump ----
+        $$("[data-jump]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const card = $(`#card-${button.dataset.jump}`);
+            card?.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+        });
+
+        // ---- palette interactions ----
+        function showToast(palette, text, kind = "success") {
+          const old = $(".ptoast", palette);
+          if (old) old.remove();
+          const toast = document.createElement("div");
+          toast.className = "ptoast";
+          toast.dataset.part = "toast";
+          toast.innerHTML = `<svg class="pico"><use href="#i-${kind === "error" ? "alert" : "check"}"></use></svg><span></span>`;
+          $("span", toast).textContent = text;
+          palette.append(toast);
+          setTimeout(() => toast.remove(), 2600);
+        }
+
+        function rowTitle(row) {
+          return row ? $(".prow-title", row)?.textContent?.trim() || "" : "";
+        }
+
+        function rowRoute(row) {
+          return row ? $(".prow-sub .mono", row)?.textContent?.trim() || "" : "";
+        }
+
+        function setScope(button, palette) {
+          const on = palette.classList.toggle("show-all");
+          const isRail = button.classList.contains("rail-btn");
+          button.classList.toggle("on", on);
+          button.setAttribute("aria-pressed", String(on));
+          const label = $("span:not(.rbadge)", button);
+          if (label && !isRail) label.textContent = on ? "All sites" : "This site";
+          button.title = on ? "Showing checkpoints from all sites" : "Show checkpoints from all sites";
+        }
+
+        function selectRow(row) {
+          const list = row.parentElement;
+          $$(".prow.on", list).forEach((item) => {
+            item.classList.remove("on");
+            item.removeAttribute("aria-selected");
+          });
+          row.classList.add("on");
+          row.setAttribute("aria-selected", "true");
+        }
+
+        function updatePreview(row) {
+          const palette = $(".pal-b");
+          if (!palette || !row?.hasAttribute("data-preview")) return;
+          const title = $(".pv-title", palette);
+          const route = $(".pv-route", palette);
+          const time = $(".pv-time", palette);
+          const size = $(".pv-size", palette);
+          const host = $(".pv-host", palette);
+          const map = $(".pv-map-text", palette);
+          const target = $(".pv-target-route", palette);
+          if (title) title.textContent = row.dataset.title || "";
+          if (route) route.textContent = row.dataset.route || "";
+          if (time) time.textContent = `${row.dataset.time || ""} ago`;
+          if (size) size.textContent = row.dataset.size || "";
+          if (host) host.textContent = "app.acme.com";
+          if (map) map.textContent = row.dataset.map || "";
+          if (target) target.textContent = row.dataset.route || "";
+          const primary = $(".pv-primary-label", palette);
+          if (primary) {
+            primary.textContent =
+              row.dataset.host === "app.acme.com"
+                ? "Restore state"
+                : "Restore on this site";
+          }
+        }
+
+        function setMode(palette, mode) {
+          palette.dataset.mode = mode;
+          $$("[data-mode-btn]", palette).forEach((button) => {
+            const on = button.dataset.modeBtn === mode;
+            button.classList.toggle("on", on);
+            button.setAttribute("aria-selected", String(on));
+          });
+          $$("[data-mode-panel]", palette).forEach((panel) => {
+            panel.hidden = panel.dataset.modePanel !== mode;
+          });
+          const input = $(".mode-input", palette);
+          if (!input) return;
+          if (mode === "go") {
+            input.value = "/cart";
+            input.placeholder = "Go to /route, ./child, ../";
+          } else if (mode === "save") {
+            input.value = "";
+            input.placeholder = "Name this checkpoint (optional)";
+          } else if (mode === "tools") {
+            input.value = "";
+            input.placeholder = "Filter tools";
+          } else {
+            input.value = "";
+            input.placeholder = "Search checkpoints";
+          }
+          const saveName = $(".save-name", palette);
+          if (saveName) saveName.textContent = "/checkout/payment 3";
+          const routeTitle = $(".route-result-title", palette);
+          if (routeTitle) routeTitle.textContent = "/cart";
+          $$(".tool-card", palette).forEach((card) => {
+            card.hidden = false;
+          });
+        }
+
+        $$(".mode-input").forEach((input) => {
+          input.addEventListener("input", () => {
+            const palette = input.closest(".palette");
+            const mode = palette.dataset.mode;
+            if (mode === "go") {
+              const route = $(".route-result-title", palette);
+              if (route) route.textContent = input.value.trim() || "/cart";
+            }
+            if (mode === "save") {
+              const name = $(".save-name", palette);
+              if (name) name.textContent = input.value.trim() || "/checkout/payment 3";
+            }
+            if (mode === "tools") {
+              const query = input.value.trim().toLowerCase();
+              $$(".tool-card", palette).forEach((card) => {
+                card.hidden = !!query && !card.textContent.toLowerCase().includes(query);
+              });
+            }
+          });
+        });
+
+        $$(".route-example").forEach((button) => {
+          button.addEventListener("click", () => {
+            const palette = button.closest(".palette");
+            const input = $(".mode-input", palette);
+            if (!input) return;
+            input.value = button.textContent.trim();
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.focus();
+          });
+        });
+
+        gallery.addEventListener("click", (event) => {
+          if (state.annotate) return;
+
+          const modeButton = event.target.closest("[data-mode-btn]");
+          if (modeButton) {
+            const palette = modeButton.closest(".palette");
+            setMode(palette, modeButton.dataset.modeBtn);
+            return;
+          }
+
+          const action = event.target.closest("[data-action]");
+          if (!action) {
+            const row = event.target.closest(".prow[data-select]");
+            if (row) {
+              selectRow(row);
+              updatePreview(row);
+            }
+            return;
+          }
+
+          const palette = action.closest(".palette");
+          if (!palette) return;
+          const kind = action.dataset.action;
+
+          if (kind === "scope") {
+            setScope(action, palette);
+            return;
+          }
+
+          if (kind === "rail-tool") {
+            $$(".rail-btn[data-action='rail-tool']", palette).forEach((button) => {
+              button.classList.toggle("on", button === action);
+            });
+            return;
+          }
+
+          if (kind === "tool") {
+            const selector = action.classList.contains("tool-card")
+              ? ".tool-card"
+              : action.classList.contains("rail-btn")
+                ? ".rail-btn[data-action='tool']"
+                : ".ptool, .pv-tool";
+            $$(selector, palette).forEach((button) => {
+              if (button !== action) button.classList.remove("on");
+            });
+            action.classList.add("on");
+            showToast(palette, `${action.dataset.tool} mode — click the page`);
+            return;
+          }
+
+          if (kind === "import") {
+            showToast(palette, "Import JSON — choose a checkpoint file");
+            return;
+          }
+
+          const row = action.closest(".prow");
+          const selected = $(".prow.on", palette);
+          if (kind === "save") {
+            showToast(palette, "Saved “/checkout/payment 3”");
+            return;
+          }
+          if (kind === "restore") {
+            if (row) selectRow(row);
+            updatePreview(row);
+            showToast(
+              palette,
+              `Restored “${rowTitle(row) || rowTitle(selected) || "checkpoint"}”`
+            );
+            return;
+          }
+          if (kind === "go") {
+            const route = action.classList.contains("route-result")
+              ? $(".route-result-title", action)?.textContent?.trim()
+              : rowRoute(row);
+            showToast(
+              palette,
+              `Went to ${route || selected?.dataset.route || "/checkout/payment"}`
+            );
+            return;
+          }
+          if (kind === "more") {
+            showToast(palette, "Rename · Export JSON · Delete");
+            return;
+          }
+        });
+
+        // Row selection for every palette.
+        $$(".prow[data-action='restore']").forEach((row) => {
+          row.addEventListener("click", (event) => {
+            if (state.annotate || event.target.closest("[data-action='more']")) return;
+            selectRow(row);
+            updatePreview(row);
+          });
+        });
+
+        // ---- annotation ----
+        gallery.addEventListener(
+          "click",
+          (event) => {
+            if (!state.annotate) return;
+            const palette = event.target.closest(".palette");
+            if (!palette) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const partEl = event.target.closest("[data-part]") || palette;
+            const rect = palette.getBoundingClientRect();
+            pending = {
+              variant: palette.dataset.palette,
+              part: partEl.dataset.part || "palette",
+              x: Math.max(1, Math.min(99, ((event.clientX - rect.left) / rect.width) * 100)),
+              y: Math.max(1, Math.min(99, ((event.clientY - rect.top) / rect.height) * 100)),
+            };
+            openPopover(event.clientX, event.clientY, pending.part, pending.variant);
+          },
+          true
+        );
+
+        document.addEventListener("keydown", (event) => {
+          const typing =
+            event.target instanceof HTMLElement &&
+            (event.target.matches("input, textarea") || event.target.isContentEditable);
+          if (event.key === "Escape") {
+            if (!notePop.hidden) closePopover();
+            else if (!drawer.hidden) closeDrawer();
+            return;
+          }
+          if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+          if (event.key.toLowerCase() === "c") {
+            event.preventDefault();
+            toggleAnnotate();
+          }
+        });
+
+        load();
+        applyChrome();
+        renderPins();
+      })();
+    </script>
+  </body>
+</html>
