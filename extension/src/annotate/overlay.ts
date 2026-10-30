@@ -7,7 +7,7 @@ import {
   AnnotationToolbar,
   type ToolbarAction,
 } from './toolbar.js';
-import type { Style, Tool } from './types.js';
+import type { Annotation, Style, Tool } from './types.js';
 
 const COLORS = ['#ff5a1f', '#fafafa', '#0d99ff', '#22c55e', '#111111'];
 const WIDTHS = [2, 4, 8];
@@ -35,6 +35,10 @@ class PageAnnotations {
 
   get isActive() {
     return this.active;
+  }
+
+  get annotations(): readonly Annotation[] {
+    return this.store.annotations;
   }
 
   toggle() {
@@ -73,10 +77,16 @@ class PageAnnotations {
   }
 
   /** Hide the bar and drop the selection outline before a page capture. */
-  prepareForCapture() {
+  beginCapture() {
     this.store.select(null);
     this.surface?.requestRender();
     this.setSuppressed(true);
+    if (this.canvas) this.canvas.style.visibility = 'hidden';
+  }
+
+  endCapture() {
+    if (this.canvas) this.canvas.style.visibility = '';
+    this.setSuppressed(false);
   }
 
   private get style(): Style {

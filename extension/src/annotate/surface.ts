@@ -90,16 +90,18 @@ export class AnnotationSurface {
 
   render() {
     const canvas = this.options.canvas;
-    const dpr = window.devicePixelRatio || 1;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const pixelWidth = Math.max(1, Math.round(width * dpr));
-    const pixelHeight = Math.max(1, Math.round(height * dpr));
+    const width = canvas.clientWidth || window.innerWidth;
+    const height = canvas.clientHeight || window.innerHeight;
+    const baseRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const maxRatio = Math.min(2, Math.max(1, 32767 / Math.max(width, height)));
+    const ratio = Math.min(baseRatio, maxRatio);
+    const pixelWidth = Math.max(1, Math.round(width * ratio));
+    const pixelHeight = Math.max(1, Math.round(height * ratio));
     if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
     if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, width, height);
     const scale = this.options.scale();
     renderAnnotations(
@@ -292,12 +294,13 @@ export class AnnotationSurface {
     this.closeTextEditor();
     const scale = Math.max(this.options.scale(), 0.001);
     const screen = this.options.toScreen(origin);
+    const canvasRect = this.options.canvas.getBoundingClientRect();
     const editor = document.createElement('textarea');
     editor.className = 'text-editor';
     editor.rows = 1;
     editor.spellcheck = false;
-    editor.style.left = `${screen.x}px`;
-    editor.style.top = `${screen.y}px`;
+    editor.style.left = `${canvasRect.left + screen.x}px`;
+    editor.style.top = `${canvasRect.top + screen.y}px`;
     editor.style.fontSize = `${Math.max(10, this.style.fontSize * scale)}px`;
     editor.style.width = '220px';
     editor.addEventListener('keydown', (event) => {

@@ -499,7 +499,7 @@ fixture, and assert:
 
 ---
 
-## 12. Implementation notes (2026-10-29)
+## 12. Implementation notes (2026-10-29, full-page camera 2026-10-30)
 
 Status: **first pass shipped**.
 
@@ -511,8 +511,8 @@ The palette footer now carries two entry buttons, not the annotation tools:
 [ + ] | inspect  type  V-guides  H-guides | [ camera ] [ annotate ] | [ import ]
 ```
 
-- **Screenshot** (`camera`) closes the palette, opens the region overlay, captures
-  the viewport and opens the editor.
+- **Screenshot** (`camera`) closes the palette, scrolls the page, captures and
+  stitches the full page, then opens the editor.
 - **Annotate** (`pencil`) closes the palette and opens the floating annotation
   bar on the live page.
 
@@ -544,11 +544,17 @@ background handler is imported from `src/background/index.ts`.
   page. They survive closing the bar until the page reloads; clear is undoable.
 - The bar's shortcuts: `V` select, `R` rectangle, `A` arrow, `P` pen, `T` text,
   `Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, `Delete`, `Esc`.
-- Before a page capture the selection outline is cleared and the bar is hidden,
-  so neither is baked into the image. Annotation shapes themselves stay visible
-  and are captured.
-- The screenshot editor fits the capture to the viewport (never upscales),
-  keeps annotations in image pixels, and exports at native resolution.
+- Before a page capture the selection outline is cleared and the annotation
+  canvas is hidden. The screenshot scrolls the window in viewport-sized steps,
+  hides fixed/sticky elements after the first tile, captures each tile through
+  the background (spaced for the two-per-second limit), and stitches at device
+  scale. The page annotations are redrawn onto the stitched image at their
+  document coordinates, so they appear once and in place.
+- Full-page limits: 40 tiles, 32,767px per dimension, ~268M px total. The output
+  is downscaled when it would exceed those bounds.
+- The screenshot editor fits the capture to the available width and scrolls
+  vertically, so a long page stays readable and annotatable. It never upscales;
+  annotations stay in image pixels and export at native resolution.
 - Copy uses `navigator.clipboard.write`; when unavailable it downloads the PNG
   and reports that in a toast.
 
@@ -566,12 +572,15 @@ already requested every http/https/file page.
 - `pnpm --filter respawn-extension lint` (0 errors)
 - `pnpm --filter respawn-extension build:extension`
 - `node test/checkpoints-e2e/run.mjs` — **90/90**, including palette buttons,
-  the floating bar, all four tools, region capture and editor open/close.
+  the floating bar, all four tools, full-page capture and the scrollable editor.
 
 ### Not shipped / deviations
 
-- Full-page tiling, inspector prefill, global `Alt+C`, persistence and video are
-  not implemented.
+- Region-only capture was removed when the camera became a full-page capture;
+  inspector prefill, global `Alt+C`, persistence and video are not implemented.
+- Fixed or sticky elements are kept in the first tile only, so a fixed header
+  appears once at the top. A fixed footer also lands in that first tile rather
+  than at the bottom of the page.
 - The bar defaults to the bottom right to avoid the centre-bottom toast; it can
   be dragged anywhere.
 - The page annotation layer is modal while the bar is open (the canvas consumes

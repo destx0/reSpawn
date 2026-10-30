@@ -647,6 +647,17 @@ async function main() {
     annotateClosed,
   );
 
+  // Make the page taller than the viewport so the full-page capture has to scroll.
+  await evaluate(
+    rx.sessionId,
+    `(() => {
+      const tall = document.createElement('div');
+      tall.id = 'e2e-tall';
+      tall.style.height = '2200px';
+      document.body.append(tall);
+      return true;
+    })()`,
+  );
   await key(rx.sessionId, 'KeyP', 'p', 1);
   await waitFor(
     rx.sessionId,
@@ -658,57 +669,34 @@ async function main() {
     `document.getElementById('respawn-palette-host').shadowRoot.querySelector('[aria-label="Screenshot"]')?.focus(); true`,
   );
   await pressNamed(rx.sessionId, 'Enter');
-  const regionOpen = await waitFor(
-    rx.sessionId,
-    `!!document.getElementById('respawn-screenshot-region-host')?.shadowRoot`,
-    3000,
-  ).catch(() => false);
-  check(
-    'screenshot: region overlay opens',
-    regionOpen === true,
-    regionOpen,
-  );
-  await send(
-    'Input.dispatchMouseEvent',
-    { type: 'mouseMoved', x: 200, y: 180, button: 'none' },
-    rx.sessionId,
-  );
-  await send(
-    'Input.dispatchMouseEvent',
-    { type: 'mousePressed', x: 200, y: 180, button: 'left', clickCount: 1 },
-    rx.sessionId,
-  );
-  await send(
-    'Input.dispatchMouseEvent',
-    {
-      type: 'mouseMoved',
-      x: 700,
-      y: 480,
-      button: 'left',
-      buttons: 1,
-    },
-    rx.sessionId,
-  );
-  await send(
-    'Input.dispatchMouseEvent',
-    { type: 'mouseReleased', x: 700, y: 480, button: 'left', clickCount: 1 },
-    rx.sessionId,
-  );
   const capturedShot = await waitFor(
     rx.sessionId,
     `(() => {
-      const image = document.getElementById('respawn-screenshot-host')?.shadowRoot?.querySelector('img.shot-image');
-      return image && image.src.startsWith('blob:') && image.naturalWidth > 0
-        ? { width: image.naturalWidth, height: image.naturalHeight }
-        : null;
+      const root = document.getElementById('respawn-screenshot-host')?.shadowRoot;
+      const image = root?.querySelector('img.shot-image');
+      const viewport = root?.querySelector('.shot-viewport');
+      if (!image || !image.src.startsWith('blob:') || !image.naturalWidth) return null;
+      return {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        scrollable: !!viewport && viewport.scrollHeight > viewport.clientHeight + 2,
+        viewportHeight: window.innerHeight,
+      };
     })()`,
-    8000,
+    15000,
   ).catch((error) => error.message);
   check(
-    'screenshot: editor opens with a captured image',
+    'screenshot: full page capture is taller than the viewport',
     !!capturedShot &&
       typeof capturedShot === 'object' &&
-      capturedShot.width > 0,
+      capturedShot.height > capturedShot.viewportHeight * 1.5,
+    capturedShot,
+  );
+  check(
+    'screenshot: editor scrolls a tall page',
+    !!capturedShot &&
+      typeof capturedShot === 'object' &&
+      capturedShot.scrollable === true,
     capturedShot,
   );
   await pressNamed(rx.sessionId, 'Escape');
@@ -724,6 +712,10 @@ async function main() {
       `!document.getElementById('respawn-screenshot-host')`,
     ),
     null,
+  );
+  await evaluate(
+    rx.sessionId,
+    `document.getElementById('e2e-tall')?.remove(); true`,
   );
 
   // ---------------------------------------------------------------- Inspector

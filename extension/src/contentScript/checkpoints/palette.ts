@@ -24,7 +24,7 @@ import {
 } from '../../checkpoints/sites.js';
 import { requestCheckpoints } from '../../checkpoints/messages.js';
 import { getAnnotations, toggleAnnotations } from '../../annotate/index.js';
-import { captureRegion } from '../../screenshot/index.js';
+import { captureFullPage } from '../../screenshot/index.js';
 import { getInspector } from '../inspector/index.js';
 import { showToast } from './toast.js';
 
@@ -704,9 +704,10 @@ class Palette {
       'dock-btn',
       () => {
         this.close();
-        void captureRegion();
+        void captureFullPage();
       },
     );
+    camera.title = 'Full page screenshot';
     this.annotateButton = this.iconButton(
       ICONS.annotate,
       'Annotate',

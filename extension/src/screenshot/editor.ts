@@ -38,6 +38,8 @@ class ScreenshotEditor {
   private readonly store = new AnnotationStore();
   private readonly surface: AnnotationSurface;
   private readonly url: string;
+  private readonly viewport: HTMLDivElement;
+  private readonly content: HTMLDivElement;
   private rect: ImageRect = { left: 0, top: 0, width: 0, height: 0, scale: 1 };
   private tool: Tool = 'select';
   private colorIndex = 0;
@@ -58,14 +60,18 @@ class ScreenshotEditor {
     const backdrop = document.createElement('div');
     backdrop.className = 'shot-backdrop';
 
+    this.viewport = document.createElement('div');
+    this.viewport.className = 'shot-viewport';
+    this.content = document.createElement('div');
+    this.content.className = 'shot-content';
+
     this.image = document.createElement('img');
     this.image.className = 'shot-image';
     this.image.alt = 'Screenshot';
     this.image.src = this.url;
 
     this.canvas = document.createElement('canvas');
-    this.canvas.className = 'annotate-canvas';
-    this.canvas.style.pointerEvents = 'auto';
+    this.canvas.className = 'shot-canvas';
 
     this.toolbar = new AnnotationToolbar({
       style: this.style,
@@ -73,7 +79,9 @@ class ScreenshotEditor {
       onAction: (action) => this.run(action),
     });
 
-    root.append(style, backdrop, this.image, this.canvas, this.toolbar.element);
+    this.content.append(this.image, this.canvas);
+    this.viewport.append(this.content);
+    root.append(style, backdrop, this.viewport, this.toolbar.element);
     document.documentElement.append(this.host);
 
     this.surface = new AnnotationSurface({
@@ -81,15 +89,16 @@ class ScreenshotEditor {
       layer: root,
       store: this.store,
       toWorld: (clientX, clientY) => {
+        const rect = this.canvas.getBoundingClientRect();
         const scale = this.rect.scale || 1;
         return {
-          x: (clientX - this.rect.left) / scale,
-          y: (clientY - this.rect.top) / scale,
+          x: (clientX - rect.left) / scale,
+          y: (clientY - rect.top) / scale,
         };
       },
       toScreen: (point) => ({
-        x: this.rect.left + point.x * this.rect.scale,
-        y: this.rect.top + point.y * this.rect.scale,
+        x: point.x * this.rect.scale,
+        y: point.y * this.rect.scale,
       }),
       scale: () => this.rect.scale || 1,
       limit: () => ({
@@ -134,30 +143,15 @@ class ScreenshotEditor {
   }
 
   private layout() {
-    const pad = 24;
-    const toolbarSpace = 86;
-    const availableWidth = Math.max(1, window.innerWidth - pad * 2);
-    const availableHeight = Math.max(
-      1,
-      window.innerHeight - pad - toolbarSpace,
-    );
+    const available = Math.max(1, this.viewport.clientWidth);
     const naturalWidth = this.image.naturalWidth || 1;
     const naturalHeight = this.image.naturalHeight || 1;
-    const scale = Math.min(
-      1,
-      availableWidth / naturalWidth,
-      availableHeight / naturalHeight,
-    );
+    const scale = Math.min(1, available / naturalWidth);
     const width = naturalWidth * scale;
     const height = naturalHeight * scale;
-    const left = (window.innerWidth - width) / 2;
-    const top =
-      pad + Math.max(0, (availableHeight - height) / 2);
-    this.rect = { left, top, width, height, scale };
-    this.image.style.left = `${left}px`;
-    this.image.style.top = `${top}px`;
-    this.image.style.width = `${width}px`;
-    this.image.style.height = `${height}px`;
+    this.content.style.width = `${width}px`;
+    this.content.style.height = `${height}px`;
+    this.rect = { left: 0, top: 0, width, height, scale };
     this.surface.render();
   }
 

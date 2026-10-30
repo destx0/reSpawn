@@ -1,286 +1,292 @@
 import { getAnnotations } from '../annotate/index.js';
+import { renderAnnotations } from '../annotate/render.js';
 import { showToast } from '../contentScript/checkpoints/toast.js';
 import { getInspector } from '../contentScript/inspector/index.js';
 import { openScreenshotEditor } from './editor.js';
 import { requestCapture } from './messages.js';
 
-const HOST_ID = 'respawn-screenshot-region-host';
 const TOAST_HOST_ID = 'respawn-toast-host';
 const INSPECTOR_HOST_ID = 'respawn-inspector-host';
 
-const STYLE = `
-:host { all: initial; }
-* { box-sizing: border-box; }
-.backdrop {
-  position: fixed; inset: 0;
-  z-index: 1;
-  cursor: crosshair;
-  font-family: 'Source Sans 3', 'Source Sans Pro', 'Segoe UI', system-ui, sans-serif;
-}
-.selection {
-  position: fixed;
-  border: 1px dashed rgba(255, 255, 255, 0.92);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.38);
-  pointer-events: none;
-}
-.size {
-  position: fixed;
-  padding: 3px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
-  background: #1b1b1b;
-  color: #fafafa;
-  font-family: 'Source Code Pro', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-}
-.hint {
-  position: fixed; top: 18px; left: 50%;
-  z-index: 2;
-  transform: translateX(-50%);
-  padding: 7px 11px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  background: rgba(20, 20, 20, 0.9);
-  color: #e8e8e8;
-  font-size: 12px;
-  white-space: nowrap;
-  pointer-events: none;
-}
-.hint kbd {
-  padding: 2px 4px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
-  font-family: 'Source Code Pro', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
-}
-`;
+const MAX_TILES = 40;
+const MAX_DIMENSION = 32767;
+const MAX_AREA = 268_000_000;
+/** captureVisibleTab is limited to two calls per second. */
+const MIN_CAPTURE_GAP = 550;
+const SCROLL_SETTLE = 120;
 
-type Rect = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+type Tile = {
+  readonly image: HTMLImageElement;
+  readonly y: number;
 };
+
+type SavedVisibility = {
+  readonly node: HTMLElement;
+  readonly visibility: string;
+  readonly priority: string;
+};
+
+class Cancelled extends Error {}
 
 const waitForPaint = () =>
   new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
 
-class RegionOverlay {
-  private host: HTMLDivElement | null = null;
-  private selection: HTMLDivElement | null = null;
-  private label: HTMLDivElement | null = null;
-  private start: { x: number; y: number } | null = null;
-  private current: Rect | null = null;
-  private busy = false;
-  private restoreNodes: Array<{
-    node: HTMLElement;
-    visibility: string;
-    priority: string;
-  }> = [];
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-  async run() {
-    this.mount();
-    await new Promise<void>((resolve) => {
-      this.resolve = resolve;
-    });
-  }
+const pageHeightOf = () =>
+  Math.max(
+    document.documentElement.scrollHeight,
+    document.body?.scrollHeight ?? 0,
+    window.innerHeight,
+  );
 
-  private resolve: (() => void) | null = null;
+let capturing = false;
 
-  private mount() {
-    const host = document.createElement('div');
-    host.id = HOST_ID;
-    const root = host.attachShadow({ mode: 'open' });
-    const style = document.createElement('style');
-    style.textContent = STYLE;
+/**
+ * Full-page screenshot: scroll the window in viewport-sized steps, capture each
+ * tile through the background, stitch them, then draw page annotations at their
+ * document coordinates. Fixed and sticky elements are only kept in the first
+ * tile so headers do not repeat.
+ */
+export async function captureFullPage() {
+  if (capturing) return;
+  capturing = true;
 
-    const backdrop = document.createElement('div');
-    backdrop.className = 'backdrop';
-    backdrop.addEventListener('pointerdown', this.onPointerDown);
-    backdrop.addEventListener('pointermove', this.onPointerMove);
-    backdrop.addEventListener('pointerup', this.onPointerUp);
-    backdrop.addEventListener('pointercancel', this.cancel);
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  const scrollBehavior = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = 'auto';
 
-    const hint = document.createElement('div');
-    hint.className = 'hint';
-    hint.innerHTML =
-      'Drag a region · <kbd>Esc</kbd> to cancel';
+  const fixed = collectFixedElements();
+  const restoreUi = hideUi();
+  let hiddenFixed: SavedVisibility[] = [];
+  let cancelled = false;
 
-    this.selection = document.createElement('div');
-    this.selection.className = 'selection';
-    this.selection.hidden = true;
-
-    this.label = document.createElement('div');
-    this.label.className = 'size';
-    this.label.hidden = true;
-
-    backdrop.append(this.selection, this.label);
-    root.append(style, hint, backdrop);
-    document.documentElement.append(host);
-    this.host = host;
-    window.addEventListener('keydown', this.onKeyDown, true);
-    this.suppressInspector();
-    getAnnotations().prepareForCapture();
-  }
-
-  private onPointerDown = (event: PointerEvent) => {
-    if (this.busy || event.button !== 0) return;
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
     event.preventDefault();
-    this.start = { x: event.clientX, y: event.clientY };
-    this.current = { x: event.clientX, y: event.clientY, w: 0, h: 0 };
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    if (this.selection) this.selection.hidden = false;
-    if (this.label) this.label.hidden = false;
-    this.paint();
+    event.stopImmediatePropagation();
+    cancelled = true;
   };
+  window.addEventListener('keydown', onKeyDown, true);
 
-  private onPointerMove = (event: PointerEvent) => {
-    if (!this.start || this.busy) return;
-    const x = Math.min(this.start.x, event.clientX);
-    const y = Math.min(this.start.y, event.clientY);
-    this.current = {
-      x,
-      y,
-      w: Math.abs(event.clientX - this.start.x),
-      h: Math.abs(event.clientY - this.start.y),
-    };
-    this.paint();
-  };
-
-  private onPointerUp = (event: PointerEvent) => {
-    if (!this.start || !this.current || this.busy) return;
-    const target = event.currentTarget as HTMLElement;
-    if (target.hasPointerCapture(event.pointerId)) {
-      target.releasePointerCapture(event.pointerId);
-    }
-    const rect = this.current;
-    this.start = null;
-    if (rect.w < 4 || rect.h < 4) {
-      this.cancel();
-      return;
-    }
-    void this.capture(rect);
-  };
-
-  private paint() {
-    if (!this.current || !this.selection || !this.label) return;
-    const { x, y, w, h } = this.current;
-    this.selection.style.left = `${x}px`;
-    this.selection.style.top = `${y}px`;
-    this.selection.style.width = `${w}px`;
-    this.selection.style.height = `${h}px`;
-    this.label.textContent = `${Math.round(w)} × ${Math.round(h)}`;
-    const labelTop = y > 30 ? y - 26 : y + h + 6;
-    this.label.style.left = `${x}px`;
-    this.label.style.top = `${labelTop}px`;
-  }
-
-  private async capture(rect: Rect) {
-    this.busy = true;
-    if (this.host) this.host.style.visibility = 'hidden';
-    try {
-      await waitForPaint();
-      const response = await requestCapture();
-      this.restoreAll();
-      if (!response.ok) {
-        getAnnotations().setSuppressed(false);
-        showToast(response.error, 'error');
-        return;
-      }
-      const blob = await crop(response.dataUrl, rect);
-      openScreenshotEditor(blob);
-    } catch (error) {
-      this.restoreAll();
-      getAnnotations().setSuppressed(false);
+  let blob: Blob | null = null;
+  let tileCount = 0;
+  try {
+    const { tiles, height, scale } = await collectTiles(
+      pageHeightOf(),
+      () => cancelled,
+      () => {
+        hiddenFixed = hideNodes(fixed);
+      },
+    );
+    if (cancelled) return;
+    tileCount = tiles.length;
+    blob = await stitch(tiles, height, scale);
+  } catch (error) {
+    if (!cancelled && !(error instanceof Cancelled)) {
       showToast(
         error instanceof Error ? error.message : 'Screenshot failed.',
         'error',
       );
-    } finally {
-      this.cleanup();
     }
+  } finally {
+    window.removeEventListener('keydown', onKeyDown, true);
+    restoreNodes(hiddenFixed);
+    window.scrollTo(scrollX, scrollY);
+    document.documentElement.style.scrollBehavior = scrollBehavior;
+    restoreUi();
+    capturing = false;
   }
 
-  private suppressInspector() {
-    getInspector()?.setSuppressed(true);
-    for (const id of [TOAST_HOST_ID, INSPECTOR_HOST_ID]) {
-      const node = document.getElementById(id);
-      if (!node) continue;
-      this.restoreNodes.push({
-        node,
-        visibility: node.style.getPropertyValue('visibility'),
-        priority: node.style.getPropertyPriority('visibility'),
-      });
-      node.style.setProperty('visibility', 'hidden', 'important');
-    }
+  if (blob && !cancelled) {
+    openScreenshotEditor(blob);
+    showToast(
+      `Full page captured · ${tileCount} ${
+        tileCount === 1 ? 'tile' : 'tiles'
+      }`,
+      'success',
+    );
   }
+}
 
-  private restoreAll() {
-    for (const { node, visibility, priority } of this.restoreNodes) {
-      if (visibility) node.style.setProperty('visibility', visibility, priority);
-      else node.style.removeProperty('visibility');
-    }
-    this.restoreNodes = [];
+function collectFixedElements() {
+  const elements: HTMLElement[] = [];
+  const nodes = document.body?.querySelectorAll<HTMLElement>('*');
+  if (!nodes) return elements;
+  for (const element of nodes) {
+    if (element.id.startsWith('respawn-')) continue;
+    const position = getComputedStyle(element).position;
+    if (position !== 'fixed' && position !== 'sticky') continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+    elements.push(element);
+  }
+  return elements;
+}
+
+function hideNodes(nodes: HTMLElement[]): SavedVisibility[] {
+  return nodes.map((node) => {
+    const visibility = node.style.getPropertyValue('visibility');
+    const priority = node.style.getPropertyPriority('visibility');
+    node.style.setProperty('visibility', 'hidden', 'important');
+    return { node, visibility, priority };
+  });
+}
+
+function restoreNodes(saved: SavedVisibility[]) {
+  for (const { node, visibility, priority } of saved) {
+    if (visibility) node.style.setProperty('visibility', visibility, priority);
+    else node.style.removeProperty('visibility');
+  }
+}
+
+function hideUi() {
+  getAnnotations().beginCapture();
+  getInspector()?.setSuppressed(true);
+  const saved: SavedVisibility[] = [];
+  for (const id of [TOAST_HOST_ID, INSPECTOR_HOST_ID]) {
+    const node = document.getElementById(id);
+    if (!node) continue;
+    saved.push({
+      node,
+      visibility: node.style.getPropertyValue('visibility'),
+      priority: node.style.getPropertyPriority('visibility'),
+    });
+    node.style.setProperty('visibility', 'hidden', 'important');
+  }
+  return () => {
+    restoreNodes(saved);
     getInspector()?.setSuppressed(getAnnotations().isActive);
-  }
-
-  private cleanup() {
-    window.removeEventListener('keydown', this.onKeyDown, true);
-    if (this.host) {
-      this.host.remove();
-      this.host = null;
-    }
-    this.resolve?.();
-    this.resolve = null;
-  }
-
-  private cancel = () => {
-    if (this.busy) return;
-    this.restoreAll();
-    getAnnotations().setSuppressed(false);
-    this.cleanup();
-  };
-
-  private onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape') return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    this.cancel();
+    getAnnotations().endCapture();
   };
 }
 
-async function crop(dataUrl: string, rect: Rect) {
-  const image = new Image();
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error('Could not read the screenshot.'));
+async function collectTiles(
+  initialHeight: number,
+  isCancelled: () => boolean,
+  onFirstTile: () => void,
+) {
+  const tiles: Tile[] = [];
+  const viewport = window.innerHeight;
+  let pageHeight = Math.max(initialHeight, viewport);
+  let y = 0;
+  let scale = 1;
+  let lastCapture = 0;
+
+  for (let index = 0; index < MAX_TILES; index++) {
+    if (isCancelled()) throw new Cancelled();
+    window.scrollTo(0, y);
+    await waitForPaint();
+    await sleep(SCROLL_SETTLE);
+    if (isCancelled()) throw new Cancelled();
+
+    const wait = MIN_CAPTURE_GAP - (Date.now() - lastCapture);
+    if (wait > 0) await sleep(wait);
+
+    const actualY = window.scrollY;
+    const response = await requestCapture();
+    lastCapture = Date.now();
+    if (!response.ok) throw new Error(response.error);
+
+    const image = await loadImage(response.dataUrl);
+    if (index === 0) {
+      scale = image.naturalWidth / window.innerWidth;
+      onFirstTile();
+    }
+    tiles.push({ image, y: actualY });
+
+    pageHeight = Math.max(
+      pageHeight,
+      document.documentElement.scrollHeight,
+      document.body?.scrollHeight ?? 0,
+    );
+    if (actualY + viewport >= pageHeight - 1) break;
+
+    const maxScroll = Math.max(0, pageHeight - viewport);
+    const next = Math.min(actualY + viewport, maxScroll);
+    if (next <= actualY) break;
+    y = next;
+  }
+
+  const covered = tiles.reduce(
+    (bottom, tile) => Math.max(bottom, tile.y + window.innerHeight),
+    viewport,
+  );
+  return {
+    tiles,
+    height: Math.min(pageHeight, covered),
+    scale,
+  };
+}
+
+function loadImage(dataUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Could not read a capture tile.'));
     image.src = dataUrl;
   });
-  const scale = image.naturalWidth / window.innerWidth;
-  const sx = Math.round(rect.x * scale);
-  const sy = Math.round(rect.y * scale);
-  const sw = Math.max(1, Math.round(rect.w * scale));
-  const sh = Math.max(1, Math.round(rect.h * scale));
+}
+
+async function stitch(tiles: Tile[], pageHeight: number, captureScale: number) {
+  const cssWidth = window.innerWidth;
+  const cssHeight = Math.max(pageHeight, window.innerHeight);
+  let outputScale = captureScale;
+  outputScale = Math.min(outputScale, MAX_DIMENSION / cssHeight);
+  outputScale = Math.min(
+    outputScale,
+    Math.sqrt(MAX_AREA / Math.max(1, cssWidth * cssHeight)),
+  );
+  outputScale = Math.max(0.01, outputScale);
+
+  const width = Math.max(1, Math.round(cssWidth * outputScale));
+  const height = Math.max(1, Math.round(cssHeight * outputScale));
   const canvas = document.createElement('canvas');
-  canvas.width = sw;
-  canvas.height = sh;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Could not crop the screenshot.');
-  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+  if (!ctx) throw new Error('Could not build the full-page image.');
+
+  for (const tile of tiles) {
+    const w = tile.image.naturalWidth;
+    const h = tile.image.naturalHeight;
+    const dw = (w / captureScale) * outputScale;
+    const dh = (h / captureScale) * outputScale;
+    ctx.drawImage(
+      tile.image,
+      0,
+      0,
+      w,
+      h,
+      0,
+      Math.round(tile.y * outputScale),
+      dw,
+      dh,
+    );
+  }
+
+  const annotations = getAnnotations().annotations;
+  if (annotations.length) {
+    renderAnnotations(
+      ctx,
+      annotations,
+      (point) => ({
+        x: point.x * outputScale,
+        y: point.y * outputScale,
+      }),
+      outputScale,
+      null,
+    );
+  }
+
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, 'image/png'),
   );
-  if (!blob) throw new Error('Could not encode the screenshot.');
+  if (!blob) throw new Error('Could not encode the full-page image.');
   return blob;
-}
-
-export async function captureRegion() {
-  if (document.getElementById(HOST_ID)) return;
-  const overlay = new RegionOverlay();
-  await overlay.run();
 }

@@ -116,15 +116,40 @@ export const EDITOR_STYLE = `
   z-index: 0;
   background: rgba(0, 0, 0, 0.72);
 }
-.shot-image {
+.shot-viewport {
   position: fixed;
+  inset: 24px 24px 86px 24px;
   z-index: 1;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+.shot-viewport::-webkit-scrollbar { width: 10px; }
+.shot-viewport::-webkit-scrollbar-thumb {
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.22);
+}
+.shot-content {
+  position: relative;
+  margin: 0 auto;
+}
+.shot-image {
   display: block;
+  width: 100%;
+  height: auto;
   border-radius: 4px;
   box-shadow:
     0 28px 80px rgba(0, 0, 0, 0.55),
     0 3px 10px rgba(0, 0, 0, 0.3);
   user-select: none;
   -webkit-user-drag: none;
+}
+.shot-canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: auto;
+  touch-action: none;
 }
 `;
