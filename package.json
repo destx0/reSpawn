@@ -25,5 +25,5 @@
   },
   "packageManager": "pnpm@11.19.0",
   "description": "reSpawn \u2014 an extension of Redux DevTools with Checkpoint features and internal navigation.",
-  "version": "0.0.1"
+  "version": "0.0.2"
 }

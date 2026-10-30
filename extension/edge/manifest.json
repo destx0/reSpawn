@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1",
+  "version": "0.0.2",
   "name": "reSpawn",
   "description": "reSpawn \u2014 an extension of Redux DevTools with Checkpoint features and internal navigation.",
   "homepage_url": "https://github.com/reduxjs/redux-devtools",
